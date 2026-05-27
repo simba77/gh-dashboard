@@ -4,6 +4,12 @@ Desktop app aggregating GitHub Projects v2 boards across an organization.
 Stack: Tauri 2 + React 18 + TypeScript + Tailwind + shadcn/ui.
 Target platforms: macOS (dev), Windows + Linux (.deb, AppImage) via CI.
 
+## Before starting work
+
+Read in this order: `docs/PLAN.md`, `docs/ARCHITECTURE.md`, `docs/DECISIONS.md`.
+The PLAN describes stages — we work through them sequentially. Always confirm
+which stage we're in before writing code.
+
 ## Working agreement
 
 - **Plan before coding.** For any non-trivial change, output a short plan first
