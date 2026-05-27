@@ -77,6 +77,5 @@ in source (see `src/auth/config.ts` once created).
 
 - Drag-n-drop status changes from the dashboard (read-only first).
 - Native notifications on new Testing items.
-- Multi-organization support per user (one org per user for v1).
 - Tests (see DECISIONS.md D5).
 - Code signing on macOS/Windows (colleagues click through warnings).
