@@ -16,13 +16,13 @@ jobs:
             os: macos-latest
             args: '--target aarch64-apple-darwin'
           - platform: macos-x64
-            os: macos-13      # Intel runner
+            os: macos-13 # Intel runner
             args: '--target x86_64-apple-darwin'
           - platform: windows-x64
             os: windows-latest
             args: ''
           - platform: linux-x64
-            os: ubuntu-22.04  # старше = совместимее по glibc
+            os: ubuntu-22.04 # старше = совместимее по glibc
             args: ''
 
     runs-on: ${{ matrix.os }}
