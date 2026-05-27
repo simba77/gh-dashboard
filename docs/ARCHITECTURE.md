@@ -4,23 +4,24 @@
 
 src/
 api/
-client.ts           # fetch wrapper, auth header injection, rate-limit log
-queries/            # .ts files exporting query strings + response types
+client.ts # fetch wrapper, auth header injection, rate-limit log
+queries/ # .ts files exporting query strings + response types
 auth/
-deviceFlow.ts       # OAuth device flow logic
-tokenStorage.ts     # Tauri keyring wrapper
+deviceFlow.ts # OAuth device flow logic
+tokenStorage.ts # Tauri keyring wrapper
 features/
-pr-review/          # PRs awaiting my review widget
-testing-queue/      # Tasks in Testing waiting for me
-assigned-by-me/     # Tasks I assigned to others
-kanban/             # Full kanban view per project
-hooks/                # generic reusable hooks (usePolling, etc.)
-ui/                   # shadcn components + small primitives
-lib/                  # pure utilities, no React, no IO
+pr-review/ # PRs awaiting my review widget
+testing-queue/ # Tasks in Testing waiting for me
+assigned-by-me/ # Tasks I assigned to others
+kanban/ # Full kanban view per project
+hooks/ # generic reusable hooks (usePolling, etc.)
+ui/ # shadcn components + small primitives
+lib/ # pure utilities, no React, no IO
 App.tsx
 main.tsx
 
-src-tauri/              # Rust side, minimal — only secure storage
+src-tauri/ # Rust side, minimal — only secure storage
+
 # and platform shell
 
 ## Rules

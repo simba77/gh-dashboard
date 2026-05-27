@@ -37,7 +37,7 @@ Target platforms: macOS (dev), Windows + Linux (.deb, AppImage) via CI.
 - Do NOT generate boilerplate "just in case" files (empty contexts, providers,
   utils.ts, types.ts grab-bags). Create files when there's content for them.
 - Do NOT use barrel exports (`index.ts` re-exports). Import from source.
-- Do NOT add comments that restate the code. Comments explain *why*, not *what*.
+- Do NOT add comments that restate the code. Comments explain _why_, not _what_.
 - Do NOT use `useEffect` for derived state. Compute during render.
 
 ## GraphQL specifics
