@@ -1,55 +1,41 @@
-import { useState } from 'react';
-import reactLogo from './assets/react.svg';
-import { invoke } from '@tauri-apps/api/core';
+import { LoginScreen } from './auth/LoginScreen';
+import { useAuth } from './auth/useAuth';
+import { useViewer } from './auth/useViewer';
 import './App.css';
 
-function App() {
-  const [greetMsg, setGreetMsg] = useState('');
-  const [name, setName] = useState('');
-
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke('greet', { name }));
-  }
+function Authenticated({ onLogout }: { onLogout: () => Promise<void> }) {
+  const { login, error } = useViewer();
 
   return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
-
-      <div className="row">
-        <a href="https://vite.dev" rel="noreferrer" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" rel="noreferrer" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://react.dev" rel="noreferrer" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
-
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet().catch((reason: unknown) => {
-            console.error(reason);
-          });
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => {
-            setName(e.currentTarget.value);
+    <main className="app">
+      <header className="app__header">
+        <span>{login ? `Signed in as ${login}` : 'Verifying…'}</span>
+        <button
+          type="button"
+          onClick={() => {
+            void onLogout();
           }}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
+        >
+          Sign out
+        </button>
+      </header>
+      {error ? <p className="login__error">{error}</p> : null}
     </main>
   );
+}
+
+function App() {
+  const { status, deviceCode, error, login, logout } = useAuth();
+
+  if (status === 'loading') {
+    return <main className="app">Loading…</main>;
+  }
+
+  if (status === 'authenticated') {
+    return <Authenticated onLogout={logout} />;
+  }
+
+  return <LoginScreen deviceCode={deviceCode} error={error} onLogin={login} />;
 }
 
 export default App;
