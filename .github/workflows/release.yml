@@ -5,6 +5,11 @@ on:
     tags:
       - 'v*'
 
+# tauri-action creates the draft release via the GitHub API; default
+# GITHUB_TOKEN is read-only and would 403 on POST /repos/.../releases.
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build (${{ matrix.platform }})
