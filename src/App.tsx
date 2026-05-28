@@ -11,6 +11,7 @@ import { TeamScreen } from './features/team-view/TeamScreen';
 import { TestingQueueWidget } from './features/testing-queue/TestingQueueWidget';
 import { useRateLimit } from './hooks/rateLimit';
 import { SettingsScreen } from './settings/SettingsScreen';
+import { useProjectSync } from './sync/useProjectSync';
 import { TopNav, type View } from './ui/TopNav';
 import './App.css';
 
@@ -59,6 +60,9 @@ function Dashboard({ viewerLogin }: { viewerLogin: string | null }) {
 function Authenticated({ onLogout }: { onLogout: () => Promise<void> }) {
   const { login, error } = useViewer();
   const [view, setView] = useState<View>('dashboard');
+  // Single sync orchestrator for the whole app. Mount-once contract: a stray
+  // second mount is guarded inside the hook via a module-level generation.
+  useProjectSync(login !== null);
 
   return (
     <div className="app-shell">
