@@ -2,9 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { fetchPrsAwaitingReview, type PrAwaitingReview } from '../../api/queries/prAwaitingReview';
 import { readCache, writeCache } from '../../hooks/cache';
+import { useRateLimit } from '../../hooks/rateLimit';
 import { logger } from '../../lib/logger';
 
 const POLL_INTERVAL_MS = 60_000;
+const RESUME_PAD_MS = 500;
 const CACHE_KEY = 'pr-awaiting-review';
 
 interface PrAwaitingReviewState {
@@ -16,8 +18,8 @@ interface PrAwaitingReviewState {
 }
 
 // Owns the query for the "PRs awaiting my review" widget. Mirrors the
-// cache+poll+lastUpdated pattern of useFanout but without fan-out — there's
-// only one underlying GraphQL call.
+// cache+poll+lastUpdated+pause pattern of useFanout but without fan-out —
+// there's only one underlying GraphQL call.
 export function usePrAwaitingReview(): PrAwaitingReviewState {
   const [prs, setPrs] = useState<PrAwaitingReview[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,9 +27,25 @@ export function usePrAwaitingReview(): PrAwaitingReviewState {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [tick, setTick] = useState(0);
   const activeRef = useRef(true);
+  const { pausedUntil } = useRateLimit();
+  const pausedAtMs = pausedUntil?.getTime() ?? 0;
 
   useEffect(() => {
     activeRef.current = true;
+
+    const now = Date.now();
+    if (pausedAtMs > now) {
+      setLoading(false);
+      const wakeTimer = window.setTimeout(
+        () => {
+          setTick((t) => t + 1);
+        },
+        pausedAtMs - now + RESUME_PAD_MS,
+      );
+      return () => {
+        window.clearTimeout(wakeTimer);
+      };
+    }
 
     const cached = readCache<PrAwaitingReview[]>(CACHE_KEY);
     if (cached) {
@@ -71,11 +89,14 @@ export function usePrAwaitingReview(): PrAwaitingReviewState {
         window.clearInterval(timerId);
       }
     };
-  }, [tick]);
+  }, [tick, pausedAtMs]);
 
   const refresh = useCallback(() => {
+    if (pausedAtMs > Date.now()) {
+      return;
+    }
     setTick((t) => t + 1);
-  }, []);
+  }, [pausedAtMs]);
 
   return { prs, loading, error, lastUpdated, refresh };
 }

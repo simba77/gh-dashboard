@@ -8,8 +8,22 @@ import { KanbanWidget } from './features/kanban/KanbanWidget';
 import { PrAwaitingReviewWidget } from './features/pr-review/PrAwaitingReviewWidget';
 import { TeamScreen } from './features/team-view/TeamScreen';
 import { TestingQueueWidget } from './features/testing-queue/TestingQueueWidget';
+import { useRateLimit } from './hooks/rateLimit';
 import { SettingsScreen } from './settings/SettingsScreen';
 import './App.css';
+
+function RateLimitBanner() {
+  const { remaining, pausedUntil } = useRateLimit();
+  if (!pausedUntil || pausedUntil.getTime() <= Date.now()) {
+    return null;
+  }
+  return (
+    <div className="rate-limit-banner">
+      Rate-limited ({remaining ?? '?'} left). Polling paused until{' '}
+      {pausedUntil.toLocaleTimeString()}.
+    </div>
+  );
+}
 
 type View = 'dashboard' | 'team' | 'settings';
 
@@ -69,6 +83,7 @@ function Authenticated({ onLogout }: { onLogout: () => Promise<void> }) {
         </div>
       </header>
       {error ? <p className="login__error">{error}</p> : null}
+      <RateLimitBanner />
       <PrAwaitingReviewWidget />
       <TestingQueueWidget viewerLogin={login} />
       <AssignedByMeWidget viewerLogin={login} />

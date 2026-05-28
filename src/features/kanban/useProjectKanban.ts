@@ -2,9 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { fetchProjectKanban, type KanbanBoard } from '../../api/queries/projectKanban';
 import { readCache, writeCache } from '../../hooks/cache';
+import { useRateLimit } from '../../hooks/rateLimit';
 import { logger } from '../../lib/logger';
 
 const POLL_INTERVAL_MS = 60_000;
+const RESUME_PAD_MS = 500;
 const CACHE_PREFIX = 'kanban:';
 
 interface ProjectKanbanState {
@@ -15,9 +17,9 @@ interface ProjectKanbanState {
   refresh: () => void;
 }
 
-// Fetches the kanban board for a single project, polls every 60s and persists
-// the last-known board per projectId so switching back to a tab feels instant.
-// null `projectId` resets state (used while settings load).
+// Fetches the kanban board for a single project, polls every 60s, persists
+// the last-known board per projectId and pauses while rate-limited. null
+// `projectId` resets state (used while settings load).
 export function useProjectKanban(projectId: string | null): ProjectKanbanState {
   const [board, setBoard] = useState<KanbanBoard | null>(null);
   const [loading, setLoading] = useState(true);
@@ -25,6 +27,8 @@ export function useProjectKanban(projectId: string | null): ProjectKanbanState {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [tick, setTick] = useState(0);
   const activeRef = useRef(true);
+  const { pausedUntil } = useRateLimit();
+  const pausedAtMs = pausedUntil?.getTime() ?? 0;
 
   useEffect(() => {
     if (!projectId) {
@@ -35,6 +39,20 @@ export function useProjectKanban(projectId: string | null): ProjectKanbanState {
       return;
     }
     activeRef.current = true;
+
+    const now = Date.now();
+    if (pausedAtMs > now) {
+      setLoading(false);
+      const wakeTimer = window.setTimeout(
+        () => {
+          setTick((t) => t + 1);
+        },
+        pausedAtMs - now + RESUME_PAD_MS,
+      );
+      return () => {
+        window.clearTimeout(wakeTimer);
+      };
+    }
 
     const cacheKey = CACHE_PREFIX + projectId;
     const cached = readCache<KanbanBoard>(cacheKey);
@@ -81,11 +99,14 @@ export function useProjectKanban(projectId: string | null): ProjectKanbanState {
         window.clearInterval(timerId);
       }
     };
-  }, [projectId, tick]);
+  }, [projectId, tick, pausedAtMs]);
 
   const refresh = useCallback(() => {
+    if (pausedAtMs > Date.now()) {
+      return;
+    }
     setTick((t) => t + 1);
-  }, []);
+  }, [pausedAtMs]);
 
   return { board, loading, error, lastUpdated, refresh };
 }

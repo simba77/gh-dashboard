@@ -2,8 +2,11 @@ import { useCallback, useEffect, useRef, useState, type DependencyList } from 'r
 
 import { logger } from '../lib/logger';
 import { readCache, writeCache } from './cache';
+import { useRateLimit } from './rateLimit';
 
 const POLL_INTERVAL_MS = 60_000;
+// Tiny pad so we don't wake up a hair before the reset and immediately bounce.
+const RESUME_PAD_MS = 500;
 
 export interface FanoutState<V> {
   items: V[];
@@ -40,12 +43,31 @@ export function useFanout<K, V>(
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [tick, setTick] = useState(0);
   const activeRef = useRef(true);
+  const { pausedUntil } = useRateLimit();
+  // Date instance is stable across renders unless state updates, so this is
+  // a cheap dep value that only changes when pause state actually changes.
+  const pausedAtMs = pausedUntil?.getTime() ?? 0;
 
   useEffect(() => {
     if (skip) {
       return;
     }
     activeRef.current = true;
+
+    // Hold off the fetch entirely while we're rate-limited; wake up just after
+    // the reset and bump tick so the effect re-runs and goes through the
+    // normal fetch+poll path.
+    const now = Date.now();
+    if (pausedAtMs > now) {
+      setLoading(false);
+      const wakeIn = pausedAtMs - now + RESUME_PAD_MS;
+      const wakeTimer = window.setTimeout(() => {
+        setTick((t) => t + 1);
+      }, wakeIn);
+      return () => {
+        window.clearTimeout(wakeTimer);
+      };
+    }
 
     // Cache hit before fetch: paint immediately, then refresh in the
     // background. The refresh button stays disabled while loading=true.
@@ -122,11 +144,16 @@ export function useFanout<K, V>(
     // we re-run when the caller's deps change. `cacheKey`/`noun` are constant
     // by contract; including them would force the user to memoise.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tick, skip, ...deps]);
+  }, [tick, skip, pausedAtMs, ...deps]);
 
   const refresh = useCallback(() => {
+    // Drop manual refresh attempts while paused — otherwise the user can
+    // dig the quota further into the floor.
+    if (pausedAtMs > Date.now()) {
+      return;
+    }
     setTick((t) => t + 1);
-  }, []);
+  }, [pausedAtMs]);
 
   return { items, loading, error, lastUpdated, refresh };
 }

@@ -161,6 +161,16 @@ button:disabled {
   font-size: 0.8rem;
 }
 
+.rate-limit-banner {
+  margin-top: 1rem;
+  padding: 0.6rem 0.8rem;
+  background: #fff4e5;
+  border: 1px solid #f0c987;
+  color: #7a4f00;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
 .widget__list {
   list-style: none;
   margin: 0;
