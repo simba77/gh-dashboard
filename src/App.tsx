@@ -14,15 +14,32 @@ import { SettingsScreen } from './settings/SettingsScreen';
 import { TopNav, type View } from './ui/TopNav';
 import './App.css';
 
+const KIND_LABEL: Record<string, string> = {
+  primary: 'GitHub API budget exhausted',
+  secondary: 'GitHub secondary rate limit (abuse protection)',
+  graphql: 'GitHub GraphQL points exhausted',
+};
+
+function formatRelative(target: Date): string {
+  const diffSec = Math.max(0, Math.round((target.getTime() - Date.now()) / 1000));
+  if (diffSec < 60) {
+    return `in ${String(diffSec)}s`;
+  }
+  const min = Math.round(diffSec / 60);
+  return `in ${String(min)} min`;
+}
+
 function RateLimitBanner() {
-  const { remaining, pausedUntil } = useRateLimit();
+  const { remaining, pausedUntil, pauseKind } = useRateLimit();
   if (!pausedUntil || pausedUntil.getTime() <= Date.now()) {
     return null;
   }
+  const label = pauseKind ? KIND_LABEL[pauseKind] : 'Rate-limited';
   return (
     <div className="rate-limit-banner">
-      Rate-limited ({remaining ?? '?'} left). Polling paused until{' '}
-      {pausedUntil.toLocaleTimeString()}.
+      <strong>{label}.</strong> Polling paused — resumes {formatRelative(pausedUntil)} (at{' '}
+      {pausedUntil.toLocaleTimeString()}
+      {remaining !== null ? `, ${String(remaining)} requests remaining` : ''}).
     </div>
   );
 }
