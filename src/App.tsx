@@ -6,19 +6,32 @@ import { useViewer } from './auth/useViewer';
 import { AssignedByMeWidget } from './features/assigned-by-me/AssignedByMeWidget';
 import { KanbanWidget } from './features/kanban/KanbanWidget';
 import { PrAwaitingReviewWidget } from './features/pr-review/PrAwaitingReviewWidget';
+import { TeamScreen } from './features/team-view/TeamScreen';
 import { TestingQueueWidget } from './features/testing-queue/TestingQueueWidget';
 import { SettingsScreen } from './settings/SettingsScreen';
 import './App.css';
 
+type View = 'dashboard' | 'team' | 'settings';
+
 function Authenticated({ onLogout }: { onLogout: () => Promise<void> }) {
   const { login, error } = useViewer();
-  const [showSettings, setShowSettings] = useState(false);
+  const [view, setView] = useState<View>('dashboard');
 
-  if (showSettings) {
+  if (view === 'settings') {
     return (
       <SettingsScreen
         onClose={() => {
-          setShowSettings(false);
+          setView('dashboard');
+        }}
+      />
+    );
+  }
+
+  if (view === 'team') {
+    return (
+      <TeamScreen
+        onClose={() => {
+          setView('dashboard');
         }}
       />
     );
@@ -32,7 +45,15 @@ function Authenticated({ onLogout }: { onLogout: () => Promise<void> }) {
           <button
             type="button"
             onClick={() => {
-              setShowSettings(true);
+              setView('team');
+            }}
+          >
+            Team
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setView('settings');
             }}
           >
             Settings
