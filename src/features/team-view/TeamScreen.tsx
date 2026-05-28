@@ -1,9 +1,11 @@
 import { openUrl } from '@tauri-apps/plugin-opener';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { OrgMember } from '../../api/queries/orgMembers';
 import type { ActiveItem } from '../../api/queries/projectActiveItems';
 import { logger } from '../../lib/logger';
+import { useSettings } from '../../settings/useSettings';
+import type { WatchedPerson } from '../../settings/settingsStore';
 import { UpdatedAgo } from '../../ui/UpdatedAgo';
 import { useOrgMembers } from './useOrgMembers';
 import { useTeamActivity } from './useTeamActivity';
@@ -30,12 +32,8 @@ function groupByStatus(items: ActiveItem[]): StatusGroup[] {
     map.set(key, arr);
   }
   return Array.from(map, ([name, groupItems]) => ({ name, items: groupItems })).sort((a, b) => {
-    if (a.name === NO_STATUS_LABEL) {
-      return 1;
-    }
-    if (b.name === NO_STATUS_LABEL) {
-      return -1;
-    }
+    if (a.name === NO_STATUS_LABEL) return 1;
+    if (b.name === NO_STATUS_LABEL) return -1;
     return a.name.localeCompare(b.name);
   });
 }
@@ -66,17 +64,17 @@ function ItemRow({ item }: { item: ActiveItem }) {
   );
 }
 
-function MemberCard({ member, items }: { member: OrgMember; items: ActiveItem[] }) {
-  const displayName = member.name ?? member.login;
+function MemberCard({ person, items }: { person: WatchedPerson; items: ActiveItem[] }) {
+  const displayName = person.name ?? person.login;
 
   if (items.length === 0) {
     return (
       <article className="team__card team__card--idle">
         <header className="team__card-head">
-          <img className="team__avatar" src={member.avatarUrl} alt="" />
+          <img className="team__avatar" src={person.avatarUrl ?? ''} alt="" />
           <div className="team__who">
             <div className="team__name">{displayName}</div>
-            <div className="team__login">@{member.login}</div>
+            <div className="team__login">@{person.login}</div>
           </div>
         </header>
         <p className="settings__hint">nothing in flight</p>
@@ -88,11 +86,11 @@ function MemberCard({ member, items }: { member: OrgMember; items: ActiveItem[] 
   return (
     <article className="team__card">
       <header className="team__card-head">
-        <img className="team__avatar" src={member.avatarUrl} alt="" />
+        <img className="team__avatar" src={person.avatarUrl ?? ''} alt="" />
         <div className="team__who">
           <div className="team__name">{displayName}</div>
           <div className="team__login">
-            @{member.login} · {items.length}
+            @{person.login} · {items.length}
           </div>
         </div>
       </header>
@@ -103,7 +101,7 @@ function MemberCard({ member, items }: { member: OrgMember; items: ActiveItem[] 
           </h4>
           <ul className="team__items">
             {group.items.map((item) => (
-              <li key={`${member.login}:${item.itemId}`}>
+              <li key={`${person.login}:${item.itemId}`}>
                 <ItemRow item={item} />
               </li>
             ))}
@@ -114,12 +112,138 @@ function MemberCard({ member, items }: { member: OrgMember; items: ActiveItem[] 
   );
 }
 
-export function TeamScreen({ onClose }: { onClose: () => void }) {
-  const members = useOrgMembers();
-  const activity = useTeamActivity();
+interface PeoplePanelProps {
+  watched: WatchedPerson[];
+  onChange: (next: WatchedPerson[]) => void;
+}
 
-  // Group items by assignee login. An item with two assignees lands under both
-  // people — workload visibility wins over deduplication here.
+function PeoplePanel({ watched, onChange }: PeoplePanelProps) {
+  const { members, loading, error } = useOrgMembers(true);
+  const watchedSet = new Set(watched.map((w) => w.login));
+
+  function toggle(member: OrgMember): void {
+    if (watchedSet.has(member.login)) {
+      onChange(watched.filter((w) => w.login !== member.login));
+    } else {
+      onChange([
+        ...watched,
+        { login: member.login, name: member.name, avatarUrl: member.avatarUrl },
+      ]);
+    }
+  }
+
+  return (
+    <div className="team__panel">
+      <h3>People shown on this screen</h3>
+      {loading ? <p className="settings__hint">Loading members…</p> : null}
+      {error ? <p className="login__error">{error}</p> : null}
+      <ul className="team__panel-list">
+        {members.map((m) => (
+          <li key={m.login}>
+            <label className="settings__project">
+              <input
+                type="checkbox"
+                checked={watchedSet.has(m.login)}
+                onChange={() => {
+                  toggle(m);
+                }}
+              />
+              <img className="team__avatar team__avatar--sm" src={m.avatarUrl} alt="" />
+              <span>
+                {m.name ?? m.login} <span className="settings__hint">@{m.login}</span>
+              </span>
+            </label>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+interface ProjectsPanelOrg {
+  login: string;
+  projects: { id: string; title: string; number: number }[];
+  excluded: Set<string>;
+}
+
+interface ProjectsPanelProps {
+  orgs: ProjectsPanelOrg[];
+  refreshing: Record<string, boolean>;
+  onToggle: (login: string, projectId: string) => void;
+  onRefresh: (login: string) => void;
+}
+
+function ProjectsPanel({ orgs, refreshing, onToggle, onRefresh }: ProjectsPanelProps) {
+  // Auto-refresh each org once per panel session — migrated installs have
+  // `projects` populated only with the previously-tracked subset, so without
+  // this the list looks suspiciously short.
+  const refreshedRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    for (const org of orgs) {
+      if (!refreshedRef.current.has(org.login)) {
+        refreshedRef.current.add(org.login);
+        onRefresh(org.login);
+      }
+    }
+  }, [orgs, onRefresh]);
+
+  return (
+    <div className="team__panel">
+      <h3>Projects included on this screen</h3>
+      <p className="settings__hint">
+        Untick to hide dead/irrelevant projects. Dashboard widgets are not affected.
+      </p>
+      {orgs.map((org) => (
+        <section key={org.login} className="team__panel-org">
+          <div className="team__panel-org-head">
+            <h4>{org.login}</h4>
+            <button
+              type="button"
+              onClick={() => {
+                onRefresh(org.login);
+              }}
+              disabled={refreshing[org.login] ?? false}
+            >
+              {refreshing[org.login] ? 'Refreshing…' : 'Refresh'}
+            </button>
+          </div>
+          {org.projects.length === 0 ? (
+            <p className="settings__hint">
+              {refreshing[org.login] ? 'Loading projects…' : 'No projects discovered.'}
+            </p>
+          ) : null}
+          <ul className="team__panel-list">
+            {org.projects.map((p) => (
+              <li key={p.id}>
+                <label className="settings__project">
+                  <input
+                    type="checkbox"
+                    checked={!org.excluded.has(p.id)}
+                    onChange={() => {
+                      onToggle(org.login, p.id);
+                    }}
+                  />
+                  <span>
+                    {p.title} <span className="settings__hint">#{p.number}</span>
+                  </span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+type Panel = 'none' | 'people' | 'projects';
+
+export function TeamScreen({ onClose }: { onClose: () => void }) {
+  const { settings, setWatched, toggleTeamExcluded, refreshOrgProjects, refreshing } =
+    useSettings();
+  const activity = useTeamActivity();
+  const [panel, setPanel] = useState<Panel>('none');
+
   const itemsByLogin = useMemo(() => {
     const map = new Map<string, ActiveItem[]>();
     for (const item of activity.items) {
@@ -132,34 +256,51 @@ export function TeamScreen({ onClose }: { onClose: () => void }) {
     return map;
   }, [activity.items]);
 
-  const sorted = useMemo(() => {
-    return [...members.members].sort((a, b) => {
+  const sortedWatched = useMemo(() => {
+    return [...settings.watched].sort((a, b) => {
       const ac = itemsByLogin.get(a.login)?.length ?? 0;
       const bc = itemsByLogin.get(b.login)?.length ?? 0;
-      if (ac !== bc) {
-        return bc - ac;
-      }
+      if (ac !== bc) return bc - ac;
       return (a.name ?? a.login).localeCompare(b.name ?? b.login);
     });
-  }, [members.members, itemsByLogin]);
+  }, [settings.watched, itemsByLogin]);
 
-  const loading = members.loading || activity.loading;
-  const refreshAll = () => {
-    members.refresh();
-    activity.refresh();
-  };
-  // Activity is the more dynamic of the two — show its freshness; members
-  // change at human timescales and would only confuse the reading.
-  const lastUpdated = activity.lastUpdated;
+  const projectsPanelOrgs: ProjectsPanelOrg[] = settings.orgs.map((o) => ({
+    login: o.login,
+    projects: o.projects,
+    excluded: new Set(o.teamExcludedProjectIds),
+  }));
+
+  function togglePanel(next: Panel): void {
+    setPanel((current) => (current === next ? 'none' : next));
+  }
 
   return (
     <main className="app">
       <header className="app__header">
         <h1>Team</h1>
         <div className="app__actions">
-          <UpdatedAgo at={lastUpdated} />
-          <button type="button" onClick={refreshAll} disabled={loading}>
-            {loading ? 'Refreshing…' : 'Refresh'}
+          <UpdatedAgo at={activity.lastUpdated} />
+          <button
+            type="button"
+            onClick={() => {
+              togglePanel('people');
+            }}
+            aria-pressed={panel === 'people'}
+          >
+            Manage people
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              togglePanel('projects');
+            }}
+            aria-pressed={panel === 'projects'}
+          >
+            Manage projects
+          </button>
+          <button type="button" onClick={activity.refresh} disabled={activity.loading}>
+            {activity.loading ? 'Refreshing…' : 'Refresh'}
           </button>
           <button type="button" onClick={onClose}>
             Done
@@ -167,21 +308,32 @@ export function TeamScreen({ onClose }: { onClose: () => void }) {
         </div>
       </header>
 
-      {members.error ? <p className="login__error">Members: {members.error}</p> : null}
-      {activity.error ? <p className="login__error">Activity: {activity.error}</p> : null}
+      {activity.error ? <p className="login__error">{activity.error}</p> : null}
 
-      {!loading && members.members.length === 0 ? (
-        <p className="settings__hint">No organizations configured. Add at least one in Settings.</p>
+      {panel === 'people' ? <PeoplePanel watched={settings.watched} onChange={setWatched} /> : null}
+      {panel === 'projects' ? (
+        <ProjectsPanel
+          orgs={projectsPanelOrgs}
+          refreshing={refreshing}
+          onRefresh={refreshOrgProjects}
+          onToggle={(login, projectId) => {
+            toggleTeamExcluded(login, projectId);
+            // Re-fetch so the change takes effect without waiting for the
+            // next 60s poll — a stale "hidden" project would still appear.
+            activity.refresh();
+          }}
+        />
       ) : null}
 
-      <p className="settings__hint">
-        Showing in-flight items (open, Status ≠ Done/Closed/Cancelled). Assignees outside the listed
-        organizations are not shown.
-      </p>
+      {settings.watched.length === 0 ? (
+        <p className="settings__hint">
+          No one watched yet. Open &quot;Manage people&quot; to choose who to show here.
+        </p>
+      ) : null}
 
       <div className="team__grid">
-        {sorted.map((m) => (
-          <MemberCard key={m.login} member={m} items={itemsByLogin.get(m.login) ?? []} />
+        {sortedWatched.map((p) => (
+          <MemberCard key={p.login} person={p} items={itemsByLogin.get(p.login) ?? []} />
         ))}
       </div>
     </main>

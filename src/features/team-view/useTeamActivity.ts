@@ -6,7 +6,10 @@ export function useTeamActivity(): FanoutState<ActiveItem> {
   return useFanout<string, ActiveItem>(
     async () => {
       const settings = await loadSettings();
-      return settings.orgs.flatMap((o) => o.projects.map((p) => p.id));
+      return settings.orgs.flatMap((o) => {
+        const excluded = new Set(o.teamExcludedProjectIds);
+        return o.projects.filter((p) => !excluded.has(p.id)).map((p) => p.id);
+      });
     },
     (projectId) => fetchProjectActiveItems(projectId),
     'projects',

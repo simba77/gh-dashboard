@@ -104,9 +104,12 @@ export function KanbanWidget() {
   useEffect(() => {
     loadSettings()
       .then((s) => {
-        const flat = s.orgs.flatMap((o) =>
-          o.projects.map((p) => ({ id: p.id, title: p.title, orgLogin: o.login })),
-        );
+        const flat = s.orgs.flatMap((o) => {
+          const tracked = new Set(o.trackedProjectIds);
+          return o.projects
+            .filter((p) => tracked.has(p.id))
+            .map((p) => ({ id: p.id, title: p.title, orgLogin: o.login }));
+        });
         setTabs(flat);
         setActive((current) => current ?? flat[0]?.id ?? null);
       })

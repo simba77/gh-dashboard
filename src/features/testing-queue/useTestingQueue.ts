@@ -16,9 +16,12 @@ export function useTestingQueue(viewerLogin: string | null): FanoutState<Testing
         return [];
       }
       const settings = await loadSettings();
-      return settings.orgs.flatMap((o) =>
-        o.projects.map((p) => ({ projectId: p.id, login: viewerLogin })),
-      );
+      return settings.orgs.flatMap((o) => {
+        const tracked = new Set(o.trackedProjectIds);
+        return o.projects
+          .filter((p) => tracked.has(p.id))
+          .map((p) => ({ projectId: p.id, login: viewerLogin }));
+      });
     },
     (k) => fetchProjectTestingItems(k.projectId, k.login),
     'projects',
