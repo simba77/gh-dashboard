@@ -3,6 +3,8 @@ import { getDb } from './connection';
 // Mirror of the `project_items` SQLite schema. `assignees` is stored as JSON
 // text in one column — we never filter on individual logins in SQL, only group
 // in TS, so a separate table would be cost without benefit.
+export type ContentState = 'OPEN' | 'CLOSED' | 'MERGED';
+
 export interface ProjectItemRow {
   itemId: string;
   projectId: string;
@@ -15,6 +17,13 @@ export interface ProjectItemRow {
   author: string | null;
   assignees: string[];
   status: string | null;
+  // Stable id of the Status option (`status` is the display label, which can
+  // be renamed). Used by Kanban to bucket cards into columns.
+  statusOptionId: string | null;
+  // null for DraftIssue (no underlying Issue/PR), 'OPEN'/'CLOSED'/'MERGED'
+  // otherwise. Lets active-work widgets skip closed items even when the board
+  // owner forgot to move them to Done.
+  contentState: ContentState | null;
   isDraft: boolean;
   fetchedAt: number;
 }
@@ -32,6 +41,8 @@ interface RawRow {
   author: string | null;
   assignees_json: string;
   status: string | null;
+  status_option_id: string | null;
+  content_state: ContentState | null;
   is_draft: number;
   fetched_at: number;
 }
@@ -60,6 +71,8 @@ function fromRaw(row: RawRow): ProjectItemRow {
     author: row.author,
     assignees,
     status: row.status,
+    statusOptionId: row.status_option_id,
+    contentState: row.content_state,
     isDraft: row.is_draft !== 0,
     fetchedAt: row.fetched_at,
   };
@@ -76,9 +89,9 @@ export async function upsertItems(items: UpsertItem[]): Promise<void> {
   const db = await getDb();
   const now = Date.now();
   // Single multi-row INSERT keeps the round-trip count to one. SQLite caps
-  // bound parameters at 999 by default; 12 columns × ~80 items per project
+  // bound parameters at 999 by default; 15 columns × ~60 items per project
   // stays well under that. If we ever blow past, chunk here.
-  const cols = '(?,?,?,?,?,?,?,?,?,?,?,?,?)';
+  const cols = '(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)';
   const placeholders = items.map(() => cols).join(',');
   const values: unknown[] = [];
   for (const it of items) {
@@ -94,6 +107,8 @@ export async function upsertItems(items: UpsertItem[]): Promise<void> {
       it.author,
       JSON.stringify(it.assignees),
       it.status,
+      it.statusOptionId,
+      it.contentState,
       it.isDraft ? 1 : 0,
       now,
     );
@@ -101,7 +116,8 @@ export async function upsertItems(items: UpsertItem[]): Promise<void> {
   await db.execute(
     `INSERT OR REPLACE INTO project_items
        (item_id, project_id, project_title, content_type, title, url, number,
-        repository, author, assignees_json, status, is_draft, fetched_at)
+        repository, author, assignees_json, status, status_option_id,
+        content_state, is_draft, fetched_at)
      VALUES ${placeholders}`,
     values,
   );

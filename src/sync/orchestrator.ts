@@ -35,18 +35,25 @@ function setInFlight(next: boolean): void {
   for (const l of inFlightListeners) l();
 }
 
-async function collectTrackedProjectIds(): Promise<string[]> {
+// Union of every project any widget might query:
+//   * `trackedProjectIds` — dashboard widgets (My tasks, Testing, ...).
+//   * known projects minus `teamExcludedProjectIds` — the Team screen, which
+//     defaults to showing everything in the org.
+// Syncing the superset means widgets share one cache instead of fanning out
+// duplicate fetches per concern.
+async function collectActiveProjectIds(): Promise<string[]> {
   const settings = await loadSettings();
-  const ids: string[] = [];
+  const ids = new Set<string>();
   for (const org of settings.orgs) {
     const tracked = new Set(org.trackedProjectIds);
+    const excluded = new Set(org.teamExcludedProjectIds);
     for (const p of org.projects) {
-      if (tracked.has(p.id)) {
-        ids.push(p.id);
+      if (tracked.has(p.id) || !excluded.has(p.id)) {
+        ids.add(p.id);
       }
     }
   }
-  return ids;
+  return Array.from(ids);
 }
 
 // Refreshes the local cache by syncing every tracked project in turn. Parallel
@@ -58,7 +65,7 @@ export async function runSyncPass(gen: number): Promise<void> {
   }
   setInFlight(true);
   try {
-    const ids = await collectTrackedProjectIds();
+    const ids = await collectActiveProjectIds();
     if (ids.length === 0) {
       await reloadFromDb([]);
       return;
@@ -87,6 +94,6 @@ export async function refreshAll(): Promise<void> {
 
 // Initial paint from the DB cache, used during boot and while rate-limited.
 export async function paintFromCache(): Promise<void> {
-  const ids = await collectTrackedProjectIds();
+  const ids = await collectActiveProjectIds();
   await reloadFromDb(ids);
 }

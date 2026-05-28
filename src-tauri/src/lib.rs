@@ -34,14 +34,45 @@ CREATE TABLE project_sync_state (
 );
 ";
 
+// v2 — extra columns/tables for the MyTasks, AssignedByMe, TeamActivity and
+// Kanban widgets:
+//   * `content_state` — OPEN/CLOSED/MERGED of the underlying Issue/PR. Lets
+//     widgets drop closed items without relying on the project's Status field
+//     being kept in sync.
+//   * `status_option_id` — stable id of the Status option (`name` can be
+//     renamed; the id can't). Used by Kanban to assign cards to columns.
+//   * `project_status_options` — the columns of each project's Status field,
+//     with their declared order. Needed by Kanban to render columns in the
+//     same order the user sees on github.com.
+const SCHEMA_V2: &str = "
+ALTER TABLE project_items ADD COLUMN content_state TEXT;
+ALTER TABLE project_items ADD COLUMN status_option_id TEXT;
+
+CREATE TABLE project_status_options (
+    project_id TEXT NOT NULL,
+    option_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    position INTEGER NOT NULL,
+    PRIMARY KEY (project_id, option_id)
+);
+";
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let migrations = vec![Migration {
-        version: 1,
-        description: "create project_items + project_sync_state",
-        sql: SCHEMA_V1,
-        kind: MigrationKind::Up,
-    }];
+    let migrations = vec![
+        Migration {
+            version: 1,
+            description: "create project_items + project_sync_state",
+            sql: SCHEMA_V1,
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 2,
+            description: "add content_state, status_option_id, status options",
+            sql: SCHEMA_V2,
+            kind: MigrationKind::Up,
+        },
+    ];
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
