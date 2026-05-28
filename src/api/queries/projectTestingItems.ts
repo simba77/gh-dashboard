@@ -14,7 +14,7 @@ export const PROJECT_TESTING_ITEMS_QUERY = `
     node(id: $projectId) {
       ... on ProjectV2 {
         title
-        items(first: $first) {
+        items(first: $first, orderBy: {field: POSITION, direction: DESC}) {
           nodes {
             id
             fieldValues(first: 20) {

@@ -13,7 +13,7 @@ export const PROJECT_KANBAN_QUERY = `
             options { id name }
           }
         }
-        items(first: $first) {
+        items(first: $first, orderBy: {field: POSITION, direction: DESC}) {
           nodes {
             id
             fieldValues(first: 20) {
