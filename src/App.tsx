@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { LoginScreen } from './auth/LoginScreen';
 import { useAuth } from './auth/useAuth';
 import { useViewer } from './auth/useViewer';
+import { PrAwaitingReviewWidget } from './features/pr-review/PrAwaitingReviewWidget';
 import { SettingsScreen } from './settings/SettingsScreen';
 import './App.css';
 
@@ -44,6 +45,7 @@ function Authenticated({ onLogout }: { onLogout: () => Promise<void> }) {
         </div>
       </header>
       {error ? <p className="login__error">{error}</p> : null}
+      <PrAwaitingReviewWidget />
     </main>
   );
 }
