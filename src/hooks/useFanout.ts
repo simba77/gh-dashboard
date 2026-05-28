@@ -15,11 +15,18 @@ export interface FanoutState<V> {
   // Wall-clock time of the most recent successful fetch (or cache hit on boot).
   // null until the first successful load.
   lastUpdated: Date | null;
+  // True while polling is held off because we're rate-limited. Widgets use
+  // this to disable Refresh and to label `UpdatedAgo` as stale.
+  paused: boolean;
   refresh: () => void;
 }
 
 function toMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function formatPause(until: Date): string {
+  return `Paused — rate limit resets at ${until.toLocaleTimeString()}`;
 }
 
 // Generalises the recurring shape "load a list of keys, fetch each in parallel
@@ -47,6 +54,11 @@ export function useFanout<K, V>(
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [tick, setTick] = useState(0);
   const activeRef = useRef(true);
+  // Mirror of items.length so the pause branch below can decide whether to
+  // surface a pause-as-error without depending on `items` and re-running the
+  // whole fetch effect every time results change.
+  const hasItemsRef = useRef(false);
+  hasItemsRef.current = items.length > 0;
   const { pausedUntil } = useRateLimit();
   // Date instance is stable across renders unless state updates, so this is
   // a cheap dep value that only changes when pause state actually changes.
@@ -60,10 +72,16 @@ export function useFanout<K, V>(
 
     // Hold off the fetch entirely while we're rate-limited; wake up just after
     // the reset and bump tick so the effect re-runs and goes through the
-    // normal fetch+poll path.
+    // normal fetch+poll path. When there's no prior data to keep showing,
+    // surface the pause as an error so the widget renders a reason instead of
+    // an empty block. We don't set it unconditionally — if cached items are
+    // visible, the global banner is enough and a duplicate red line is noise.
     const now = Date.now();
     if (pausedAtMs > now) {
       setLoading(false);
+      if (!hasItemsRef.current) {
+        setError(formatPause(new Date(pausedAtMs)));
+      }
       const wakeIn = pausedAtMs - now + RESUME_PAD_MS;
       const wakeTimer = window.setTimeout(() => {
         setTick((t) => t + 1);
@@ -161,5 +179,5 @@ export function useFanout<K, V>(
     setTick((t) => t + 1);
   }, [pausedAtMs]);
 
-  return { items, loading, error, lastUpdated, refresh };
+  return { items, loading, error, lastUpdated, paused: pausedAtMs > Date.now(), refresh };
 }

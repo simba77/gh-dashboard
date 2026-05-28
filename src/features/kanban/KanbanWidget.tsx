@@ -2,6 +2,7 @@ import { openUrl } from '@tauri-apps/plugin-opener';
 import { useEffect, useState } from 'react';
 
 import type { KanbanCard, KanbanColumn } from '../../api/queries/projectKanban';
+import { useRateLimit } from '../../hooks/rateLimit';
 import { logger } from '../../lib/logger';
 import { loadSettings } from '../../settings/settingsStore';
 import { UpdatedAgo } from '../../ui/UpdatedAgo';
@@ -69,13 +70,17 @@ function Column({ column }: { column: KanbanColumn }) {
 }
 
 function BoardView({ projectId }: { projectId: string }) {
-  const { board, loading, error, lastUpdated, refresh } = useProjectKanban(projectId);
+  const { board, loading, error, lastUpdated, paused, refresh } = useProjectKanban(projectId);
+  const { pausedUntil } = useRateLimit();
+  const pauseTitle = pausedUntil
+    ? `Rate-limited until ${pausedUntil.toLocaleTimeString()}`
+    : undefined;
 
   return (
     <div className="kanban__board">
       <div className="kanban__toolbar">
-        <UpdatedAgo at={lastUpdated} />
-        <button type="button" onClick={refresh} disabled={loading}>
+        <UpdatedAgo at={lastUpdated} paused={paused} />
+        <button type="button" onClick={refresh} disabled={loading || paused} title={pauseTitle}>
           {loading ? 'Refreshing…' : 'Refresh'}
         </button>
       </div>

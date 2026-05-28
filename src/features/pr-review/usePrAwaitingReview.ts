@@ -14,7 +14,12 @@ interface PrAwaitingReviewState {
   loading: boolean;
   error: string | null;
   lastUpdated: Date | null;
+  paused: boolean;
   refresh: () => void;
+}
+
+function formatPause(until: Date): string {
+  return `Paused — rate limit resets at ${until.toLocaleTimeString()}`;
 }
 
 // Owns the query for the "PRs awaiting my review" widget. Mirrors the
@@ -36,6 +41,17 @@ export function usePrAwaitingReview(): PrAwaitingReviewState {
     const now = Date.now();
     if (pausedAtMs > now) {
       setLoading(false);
+      // Paint a cached list so the user has something to look at; only call
+      // out the pause as an error when there's no prior data — otherwise the
+      // global banner is the right place for it.
+      const cached = readCache<PrAwaitingReview[]>(CACHE_KEY);
+      if (cached) {
+        setPrs(cached.items);
+        setLastUpdated(new Date(cached.savedAt));
+        setError(null);
+      } else {
+        setError(formatPause(new Date(pausedAtMs)));
+      }
       const wakeTimer = window.setTimeout(
         () => {
           setTick((t) => t + 1);
@@ -98,5 +114,5 @@ export function usePrAwaitingReview(): PrAwaitingReviewState {
     setTick((t) => t + 1);
   }, [pausedAtMs]);
 
-  return { prs, loading, error, lastUpdated, refresh };
+  return { prs, loading, error, lastUpdated, paused: pausedAtMs > Date.now(), refresh };
 }

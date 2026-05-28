@@ -3,22 +3,26 @@ import { useEffect, useSyncExternalStore } from 'react';
 
 import { logger } from '../lib/logger';
 
-// When `remaining` drops below this floor, polling pauses until `resetAt`.
-// Matches the floor used Rust-side for the warning log.
-const FLOOR = 100;
+export type RateLimitKind = 'primary' | 'secondary' | 'graphql';
+
+interface Pause {
+  kind: RateLimitKind;
+  until: Date;
+}
 
 interface State {
   remaining: number | null;
   resetAt: Date | null;
+  pause: Pause | null;
 }
 
 interface Payload {
-  remaining: number;
-  // Unix epoch seconds — Rust uses GitHub's header value as-is.
-  reset_at: number;
+  remaining: number | null;
+  reset_at: number | null;
+  pause: { kind: RateLimitKind; until: number } | null;
 }
 
-let state: State = { remaining: null, resetAt: null };
+let state: State = { remaining: null, resetAt: null, pause: null };
 const listeners = new Set<() => void>();
 
 function emit(): void {
@@ -46,9 +50,11 @@ function init(): void {
   }
   initialized = true;
   listen<Payload>('rate-limit', (event) => {
+    const { remaining, reset_at, pause } = event.payload;
     state = {
-      remaining: event.payload.remaining,
-      resetAt: new Date(event.payload.reset_at * 1000),
+      remaining,
+      resetAt: reset_at !== null ? new Date(reset_at * 1000) : null,
+      pause: pause ? { kind: pause.kind, until: new Date(pause.until * 1000) } : null,
     };
     emit();
   }).catch((e: unknown) => {
@@ -56,10 +62,13 @@ function init(): void {
   });
 }
 
-export interface RateLimit extends State {
-  // Non-null only while we're under the floor — hooks check this to decide
-  // whether to skip polling. Setting to `null` resumes normal cadence.
+export interface RateLimit {
+  remaining: number | null;
+  resetAt: Date | null;
+  // Non-null only while we're actually blocked. Hooks check this to decide
+  // whether to skip polling; the banner uses it to render the warning.
   pausedUntil: Date | null;
+  pauseKind: RateLimitKind | null;
 }
 
 export function useRateLimit(): RateLimit {
@@ -68,10 +77,16 @@ export function useRateLimit(): RateLimit {
     init();
   }, []);
 
-  const pausedUntil =
-    snapshot.remaining !== null && snapshot.remaining < FLOOR && snapshot.resetAt
-      ? snapshot.resetAt
-      : null;
+  // A stale `pause` whose `until` has already passed should read as "not
+  // paused" until the next event clears it explicitly. The next request will
+  // re-emit and either confirm the pause or drop it.
+  const { pause } = snapshot;
+  const active = pause && pause.until.getTime() > Date.now() ? pause : null;
 
-  return { ...snapshot, pausedUntil };
+  return {
+    remaining: snapshot.remaining,
+    resetAt: snapshot.resetAt,
+    pausedUntil: active?.until ?? null,
+    pauseKind: active?.kind ?? null,
+  };
 }

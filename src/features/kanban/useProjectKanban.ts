@@ -14,7 +14,12 @@ interface ProjectKanbanState {
   loading: boolean;
   error: string | null;
   lastUpdated: Date | null;
+  paused: boolean;
   refresh: () => void;
+}
+
+function formatPause(until: Date): string {
+  return `Paused — rate limit resets at ${until.toLocaleTimeString()}`;
 }
 
 // Fetches the kanban board for a single project, polls every 60s, persists
@@ -40,9 +45,23 @@ export function useProjectKanban(projectId: string | null): ProjectKanbanState {
     }
     activeRef.current = true;
 
+    const cacheKey = CACHE_PREFIX + projectId;
     const now = Date.now();
     if (pausedAtMs > now) {
       setLoading(false);
+      // Paint a cached board if we have one so the user isn't staring at
+      // a blank tab while paused. Surface the pause as an error only when
+      // there's nothing to show — otherwise the global banner is enough.
+      const cached = readCache<KanbanBoard>(cacheKey);
+      if (cached) {
+        setBoard(cached.items);
+        setLastUpdated(new Date(cached.savedAt));
+        setError(null);
+      } else {
+        setBoard(null);
+        setLastUpdated(null);
+        setError(formatPause(new Date(pausedAtMs)));
+      }
       const wakeTimer = window.setTimeout(
         () => {
           setTick((t) => t + 1);
@@ -54,7 +73,6 @@ export function useProjectKanban(projectId: string | null): ProjectKanbanState {
       };
     }
 
-    const cacheKey = CACHE_PREFIX + projectId;
     const cached = readCache<KanbanBoard>(cacheKey);
     if (cached) {
       setBoard(cached.items);
@@ -108,5 +126,5 @@ export function useProjectKanban(projectId: string | null): ProjectKanbanState {
     setTick((t) => t + 1);
   }, [pausedAtMs]);
 
-  return { board, loading, error, lastUpdated, refresh };
+  return { board, loading, error, lastUpdated, paused: pausedAtMs > Date.now(), refresh };
 }

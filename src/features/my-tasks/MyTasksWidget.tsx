@@ -1,6 +1,7 @@
 import { openUrl } from '@tauri-apps/plugin-opener';
 
 import type { ActiveItem } from '../../api/queries/projectActiveItems';
+import { useRateLimit } from '../../hooks/rateLimit';
 import { logger } from '../../lib/logger';
 import { UpdatedAgo } from '../../ui/UpdatedAgo';
 import { useMyTasks } from './useMyTasks';
@@ -40,15 +41,24 @@ function ItemRow({ item }: { item: ActiveItem }) {
 }
 
 export function MyTasksWidget({ viewerLogin }: { viewerLogin: string | null }) {
-  const { items, loading, error, lastUpdated, refresh } = useMyTasks(viewerLogin);
+  const { items, loading, error, lastUpdated, paused, refresh } = useMyTasks(viewerLogin);
+  const { pausedUntil } = useRateLimit();
+  const pauseTitle = pausedUntil
+    ? `Rate-limited until ${pausedUntil.toLocaleTimeString()}`
+    : undefined;
 
   return (
     <section className="widget">
       <header className="widget__head">
         <h2>My open tasks</h2>
         <div className="widget__head-meta">
-          <UpdatedAgo at={lastUpdated} />
-          <button type="button" onClick={refresh} disabled={loading || !viewerLogin}>
+          <UpdatedAgo at={lastUpdated} paused={paused} />
+          <button
+            type="button"
+            onClick={refresh}
+            disabled={loading || paused || !viewerLogin}
+            title={pauseTitle}
+          >
             {loading ? 'Refreshing…' : 'Refresh'}
           </button>
         </div>

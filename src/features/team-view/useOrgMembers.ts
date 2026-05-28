@@ -9,13 +9,14 @@ interface OrgMembersState {
   loading: boolean;
   error: string | null;
   lastUpdated: Date | null;
+  paused: boolean;
   refresh: () => void;
 }
 
 // `enabled` lets the Team view defer this fetch until the user actually opens
 // the "Manage people" panel — saves one query per refresh on the common path.
 export function useOrgMembers(enabled = true): OrgMembersState {
-  const { items, loading, error, lastUpdated, refresh } = useFanout<string, OrgMember>(
+  const { items, loading, error, lastUpdated, paused, refresh } = useFanout<string, OrgMember>(
     async () => {
       const settings = await loadSettings();
       return settings.orgs.map((o) => o.login);
@@ -40,5 +41,5 @@ export function useOrgMembers(enabled = true): OrgMembersState {
     return Array.from(byLogin.values());
   }, [items]);
 
-  return { members, loading, error, lastUpdated, refresh };
+  return { members, loading, error, lastUpdated, paused, refresh };
 }

@@ -21,7 +21,10 @@ function formatAgo(at: Date): string {
   return `${String(Math.floor(diff / HOUR))}h ago`;
 }
 
-export function UpdatedAgo({ at }: { at: Date | null }) {
+// `paused` flags that polling is held off (rate limit) — appended so the user
+// understands the `lastUpdated` figure has stopped advancing on purpose, and
+// that the cause is global (mirrored by the top-of-app banner).
+export function UpdatedAgo({ at, paused = false }: { at: Date | null; paused?: boolean }) {
   const [, force] = useReducer((n: number) => n + 1, 0);
 
   useEffect(() => {
@@ -34,7 +37,12 @@ export function UpdatedAgo({ at }: { at: Date | null }) {
   }, []);
 
   if (!at) {
-    return null;
+    return paused ? <span className="updated-ago">Paused</span> : null;
   }
-  return <span className="updated-ago">Updated {formatAgo(at)}</span>;
+  return (
+    <span className="updated-ago">
+      Updated {formatAgo(at)}
+      {paused ? ' · paused' : ''}
+    </span>
+  );
 }

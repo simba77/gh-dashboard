@@ -1,6 +1,7 @@
 import { openUrl } from '@tauri-apps/plugin-opener';
 
 import type { CiState } from '../../api/queries/prAwaitingReview';
+import { useRateLimit } from '../../hooks/rateLimit';
 import { logger } from '../../lib/logger';
 import { UpdatedAgo } from '../../ui/UpdatedAgo';
 import { usePrAwaitingReview } from './usePrAwaitingReview';
@@ -33,15 +34,19 @@ function handleOpen(url: string): void {
 }
 
 export function PrAwaitingReviewWidget() {
-  const { prs, loading, error, lastUpdated, refresh } = usePrAwaitingReview();
+  const { prs, loading, error, lastUpdated, paused, refresh } = usePrAwaitingReview();
+  const { pausedUntil } = useRateLimit();
+  const pauseTitle = pausedUntil
+    ? `Rate-limited until ${pausedUntil.toLocaleTimeString()}`
+    : undefined;
 
   return (
     <section className="widget">
       <header className="widget__head">
         <h2>PRs awaiting my review</h2>
         <div className="widget__head-meta">
-          <UpdatedAgo at={lastUpdated} />
-          <button type="button" onClick={refresh} disabled={loading}>
+          <UpdatedAgo at={lastUpdated} paused={paused} />
+          <button type="button" onClick={refresh} disabled={loading || paused} title={pauseTitle}>
             {loading ? 'Refreshing…' : 'Refresh'}
           </button>
         </div>
