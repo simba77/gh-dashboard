@@ -255,7 +255,7 @@ button:disabled {
 }
 
 .rate-limit-banner {
-  margin-top: 1rem;
+  margin: 1rem 0;
   padding: 0.6rem 0.8rem;
   background: #fff4e5;
   border: 1px solid #f0c987;

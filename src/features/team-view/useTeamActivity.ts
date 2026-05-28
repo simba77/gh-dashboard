@@ -2,6 +2,10 @@ import { fetchProjectActiveItems, type ActiveItem } from '../../api/queries/proj
 import { useFanout, type FanoutState } from '../../hooks/useFanout';
 import { loadSettings } from '../../settings/settingsStore';
 
+// Team is heavier than the dashboard widgets (one request per project across
+// the whole org), so we poll it on a slower cadence to keep the quota safe.
+const TEAM_POLL_INTERVAL_MS = 10 * 60 * 1000;
+
 export function useTeamActivity(): FanoutState<ActiveItem> {
   return useFanout<string, ActiveItem>(
     async () => {
@@ -16,5 +20,6 @@ export function useTeamActivity(): FanoutState<ActiveItem> {
     [],
     false,
     'team-activity',
+    TEAM_POLL_INTERVAL_MS,
   );
 }

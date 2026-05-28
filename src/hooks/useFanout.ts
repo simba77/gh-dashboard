@@ -4,7 +4,7 @@ import { logger } from '../lib/logger';
 import { readCache, writeCache } from './cache';
 import { useRateLimit } from './rateLimit';
 
-const POLL_INTERVAL_MS = 60_000;
+const DEFAULT_POLL_INTERVAL_MS = 60_000;
 // Tiny pad so we don't wake up a hair before the reset and immediately bounce.
 const RESUME_PAD_MS = 500;
 
@@ -36,6 +36,10 @@ export function useFanout<K, V>(
   deps: DependencyList,
   skip = false,
   cacheKey?: string,
+  // 0 disables polling entirely (fetch once on mount, then only on explicit
+  // `refresh()`). The post-rate-limit wake-up still fires so a throttled first
+  // load eventually completes.
+  pollIntervalMs = DEFAULT_POLL_INTERVAL_MS,
 ): FanoutState<V> {
   const [items, setItems] = useState<V[]>([]);
   const [loading, setLoading] = useState(true);
@@ -123,13 +127,15 @@ export function useFanout<K, V>(
       } finally {
         if (activeRef.current) {
           setLoading(false);
-          // Schedule the next poll only after this fetch finished, so polls
-          // never overlap. Manual refresh bumps `tick`, re-runs the effect,
-          // and the cleanup below clears this interval before a new one is
-          // scheduled — so the cadence naturally resets on every refresh.
-          timerId = window.setInterval(() => {
-            setTick((t) => t + 1);
-          }, POLL_INTERVAL_MS);
+          if (pollIntervalMs > 0) {
+            // Schedule the next poll only after this fetch finished, so polls
+            // never overlap. Manual refresh bumps `tick`, re-runs the effect,
+            // and the cleanup below clears this interval before a new one is
+            // scheduled — so the cadence naturally resets on every refresh.
+            timerId = window.setInterval(() => {
+              setTick((t) => t + 1);
+            }, pollIntervalMs);
+          }
         }
       }
     })();

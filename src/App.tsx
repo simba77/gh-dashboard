@@ -56,9 +56,18 @@ function Authenticated({ onLogout }: { onLogout: () => Promise<void> }) {
       <div className="app">
         {error ? <p className="login__error">{error}</p> : null}
         <RateLimitBanner />
-        {view === 'dashboard' ? <Dashboard viewerLogin={login} /> : null}
-        {view === 'team' ? <TeamScreen /> : null}
-        {view === 'settings' ? <SettingsScreen /> : null}
+        {/* All screens are mounted at once and toggled via `hidden`, so widget
+            state and in-flight polls survive tab switches. Trade-off: every
+            screen fetches on first login, not only the active one. */}
+        <div hidden={view !== 'dashboard'}>
+          <Dashboard viewerLogin={login} />
+        </div>
+        <div hidden={view !== 'team'}>
+          <TeamScreen />
+        </div>
+        <div hidden={view !== 'settings'}>
+          <SettingsScreen />
+        </div>
       </div>
     </div>
   );

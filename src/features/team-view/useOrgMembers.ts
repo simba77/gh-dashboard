@@ -25,6 +25,7 @@ export function useOrgMembers(enabled = true): OrgMembersState {
     [],
     !enabled,
     'team-members',
+    0,
   );
 
   // Members are deduped by login here (not inside useFanout) — that's a
