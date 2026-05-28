@@ -11,5 +11,7 @@ export function useTeamActivity(): FanoutState<ActiveItem> {
     (projectId) => fetchProjectActiveItems(projectId),
     'projects',
     [],
+    false,
+    'team-activity',
   );
 }

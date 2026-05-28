@@ -149,6 +149,17 @@ button:disabled {
   font-size: 1.1rem;
 }
 
+.widget__head-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.updated-ago {
+  color: #888;
+  font-size: 0.8rem;
+}
+
 .widget__list {
   list-style: none;
   margin: 0;
@@ -263,7 +274,9 @@ button:disabled {
 
 .kanban__toolbar {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  gap: 0.6rem;
   margin-bottom: 0.5rem;
 }
 

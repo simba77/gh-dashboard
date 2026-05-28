@@ -2,6 +2,7 @@ import { openUrl } from '@tauri-apps/plugin-opener';
 
 import type { TestingItem } from '../../api/queries/projectTestingItems';
 import { logger } from '../../lib/logger';
+import { UpdatedAgo } from '../../ui/UpdatedAgo';
 import { useTestingQueue } from './useTestingQueue';
 
 function handleOpen(url: string): void {
@@ -46,15 +47,18 @@ function ItemRow({ item }: { item: TestingItem }) {
 }
 
 export function TestingQueueWidget({ viewerLogin }: { viewerLogin: string | null }) {
-  const { items, loading, error, refresh } = useTestingQueue(viewerLogin);
+  const { items, loading, error, lastUpdated, refresh } = useTestingQueue(viewerLogin);
 
   return (
     <section className="widget">
       <header className="widget__head">
         <h2>Tasks in Testing waiting for me</h2>
-        <button type="button" onClick={refresh} disabled={loading || !viewerLogin}>
-          {loading ? 'Refreshing…' : 'Refresh'}
-        </button>
+        <div className="widget__head-meta">
+          <UpdatedAgo at={lastUpdated} />
+          <button type="button" onClick={refresh} disabled={loading || !viewerLogin}>
+            {loading ? 'Refreshing…' : 'Refresh'}
+          </button>
+        </div>
       </header>
 
       {error ? <p className="login__error">{error}</p> : null}

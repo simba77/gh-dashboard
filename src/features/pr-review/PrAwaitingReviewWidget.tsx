@@ -2,6 +2,7 @@ import { openUrl } from '@tauri-apps/plugin-opener';
 
 import type { CiState } from '../../api/queries/prAwaitingReview';
 import { logger } from '../../lib/logger';
+import { UpdatedAgo } from '../../ui/UpdatedAgo';
 import { usePrAwaitingReview } from './usePrAwaitingReview';
 
 // Maps the GraphQL statusCheckRollup state to a coarse traffic-light bucket
@@ -32,15 +33,18 @@ function handleOpen(url: string): void {
 }
 
 export function PrAwaitingReviewWidget() {
-  const { prs, loading, error, refresh } = usePrAwaitingReview();
+  const { prs, loading, error, lastUpdated, refresh } = usePrAwaitingReview();
 
   return (
     <section className="widget">
       <header className="widget__head">
         <h2>PRs awaiting my review</h2>
-        <button type="button" onClick={refresh} disabled={loading}>
-          {loading ? 'Refreshing…' : 'Refresh'}
-        </button>
+        <div className="widget__head-meta">
+          <UpdatedAgo at={lastUpdated} />
+          <button type="button" onClick={refresh} disabled={loading}>
+            {loading ? 'Refreshing…' : 'Refresh'}
+          </button>
+        </div>
       </header>
 
       {error ? <p className="login__error">{error}</p> : null}

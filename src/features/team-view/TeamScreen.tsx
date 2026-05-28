@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import type { OrgMember } from '../../api/queries/orgMembers';
 import type { ActiveItem } from '../../api/queries/projectActiveItems';
 import { logger } from '../../lib/logger';
+import { UpdatedAgo } from '../../ui/UpdatedAgo';
 import { useOrgMembers } from './useOrgMembers';
 import { useTeamActivity } from './useTeamActivity';
 
@@ -147,12 +148,16 @@ export function TeamScreen({ onClose }: { onClose: () => void }) {
     members.refresh();
     activity.refresh();
   };
+  // Activity is the more dynamic of the two — show its freshness; members
+  // change at human timescales and would only confuse the reading.
+  const lastUpdated = activity.lastUpdated;
 
   return (
     <main className="app">
       <header className="app__header">
         <h1>Team</h1>
         <div className="app__actions">
+          <UpdatedAgo at={lastUpdated} />
           <button type="button" onClick={refreshAll} disabled={loading}>
             {loading ? 'Refreshing…' : 'Refresh'}
           </button>

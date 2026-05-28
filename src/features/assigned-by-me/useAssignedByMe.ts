@@ -25,5 +25,6 @@ export function useAssignedByMe(viewerLogin: string | null): FanoutState<Assigne
     'projects',
     [viewerLogin],
     !viewerLogin,
+    'assigned-by-me',
   );
 }

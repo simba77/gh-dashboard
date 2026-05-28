@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import type { KanbanCard, KanbanColumn } from '../../api/queries/projectKanban';
 import { logger } from '../../lib/logger';
 import { loadSettings } from '../../settings/settingsStore';
+import { UpdatedAgo } from '../../ui/UpdatedAgo';
 import { useProjectKanban } from './useProjectKanban';
 
 interface TabProject {
@@ -68,11 +69,12 @@ function Column({ column }: { column: KanbanColumn }) {
 }
 
 function BoardView({ projectId }: { projectId: string }) {
-  const { board, loading, error, refresh } = useProjectKanban(projectId);
+  const { board, loading, error, lastUpdated, refresh } = useProjectKanban(projectId);
 
   return (
     <div className="kanban__board">
       <div className="kanban__toolbar">
+        <UpdatedAgo at={lastUpdated} />
         <button type="button" onClick={refresh} disabled={loading}>
           {loading ? 'Refreshing…' : 'Refresh'}
         </button>

@@ -2,6 +2,7 @@ import { openUrl } from '@tauri-apps/plugin-opener';
 
 import type { AssignedItem } from '../../api/queries/projectAssignedItems';
 import { logger } from '../../lib/logger';
+import { UpdatedAgo } from '../../ui/UpdatedAgo';
 import { useAssignedByMe } from './useAssignedByMe';
 
 function handleOpen(url: string): void {
@@ -44,15 +45,18 @@ function ItemRow({ item }: { item: AssignedItem }) {
 }
 
 export function AssignedByMeWidget({ viewerLogin }: { viewerLogin: string | null }) {
-  const { items, loading, error, refresh } = useAssignedByMe(viewerLogin);
+  const { items, loading, error, lastUpdated, refresh } = useAssignedByMe(viewerLogin);
 
   return (
     <section className="widget">
       <header className="widget__head">
         <h2>Tasks I assigned to others</h2>
-        <button type="button" onClick={refresh} disabled={loading || !viewerLogin}>
-          {loading ? 'Refreshing…' : 'Refresh'}
-        </button>
+        <div className="widget__head-meta">
+          <UpdatedAgo at={lastUpdated} />
+          <button type="button" onClick={refresh} disabled={loading || !viewerLogin}>
+            {loading ? 'Refreshing…' : 'Refresh'}
+          </button>
+        </div>
       </header>
 
       {error ? <p className="login__error">{error}</p> : null}

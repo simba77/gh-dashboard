@@ -1,11 +1,17 @@
 import { useCallback, useEffect, useRef, useState, type DependencyList } from 'react';
 
 import { logger } from '../lib/logger';
+import { readCache, writeCache } from './cache';
+
+const POLL_INTERVAL_MS = 60_000;
 
 export interface FanoutState<V> {
   items: V[];
   loading: boolean;
   error: string | null;
+  // Wall-clock time of the most recent successful fetch (or cache hit on boot).
+  // null until the first successful load.
+  lastUpdated: Date | null;
   refresh: () => void;
 }
 
@@ -17,16 +23,21 @@ function toMessage(error: unknown): string {
 // with Promise.allSettled, concat fulfilled, surface rejections as one line".
 // `skip` keeps the hook in the loading state without fetching (used when a
 // required input like the viewer login hasn't arrived yet).
+// `cacheKey` enables localStorage-backed instant render on boot and writes
+// fresh results after every successful fetch. Assumed stable for the hook's
+// lifetime — changing it mid-life won't switch caches.
 export function useFanout<K, V>(
   loadKeys: () => Promise<K[]>,
   fetchOne: (key: K) => Promise<V[]>,
   noun: string,
   deps: DependencyList,
   skip = false,
+  cacheKey?: string,
 ): FanoutState<V> {
   const [items, setItems] = useState<V[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [tick, setTick] = useState(0);
   const activeRef = useRef(true);
 
@@ -35,7 +46,19 @@ export function useFanout<K, V>(
       return;
     }
     activeRef.current = true;
+
+    // Cache hit before fetch: paint immediately, then refresh in the
+    // background. The refresh button stays disabled while loading=true.
+    if (cacheKey) {
+      const cached = readCache<V[]>(cacheKey);
+      if (cached) {
+        setItems(cached.items);
+        setLastUpdated(new Date(cached.savedAt));
+      }
+    }
     setLoading(true);
+
+    let timerId: number | undefined;
 
     void (async () => {
       try {
@@ -57,6 +80,10 @@ export function useFanout<K, V>(
         }
 
         setItems(collected);
+        setLastUpdated(new Date());
+        if (cacheKey) {
+          writeCache(cacheKey, collected);
+        }
         const first = failures[0] ?? '';
         setError(
           failures.length === 0
@@ -74,15 +101,26 @@ export function useFanout<K, V>(
       } finally {
         if (activeRef.current) {
           setLoading(false);
+          // Schedule the next poll only after this fetch finished, so polls
+          // never overlap. Manual refresh bumps `tick`, re-runs the effect,
+          // and the cleanup below clears this interval before a new one is
+          // scheduled — so the cadence naturally resets on every refresh.
+          timerId = window.setInterval(() => {
+            setTick((t) => t + 1);
+          }, POLL_INTERVAL_MS);
         }
       }
     })();
 
     return () => {
       activeRef.current = false;
+      if (timerId !== undefined) {
+        window.clearInterval(timerId);
+      }
     };
-    // The caller owns deps and passes stable `loadKeys`/`fetchOne` (closures
-    // captured per-render are fine — we re-run when the caller's deps change).
+    // The caller owns deps and passes stable `loadKeys`/`fetchOne` closures —
+    // we re-run when the caller's deps change. `cacheKey`/`noun` are constant
+    // by contract; including them would force the user to memoise.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tick, skip, ...deps]);
 
@@ -90,5 +128,5 @@ export function useFanout<K, V>(
     setTick((t) => t + 1);
   }, []);
 
-  return { items, loading, error, refresh };
+  return { items, loading, error, lastUpdated, refresh };
 }

@@ -8,13 +8,14 @@ interface OrgMembersState {
   members: OrgMember[];
   loading: boolean;
   error: string | null;
+  lastUpdated: Date | null;
   refresh: () => void;
 }
 
 // Members are deduped by login here (not inside useFanout) — that's a
 // domain rule, not part of the generic fan-out shape.
 export function useOrgMembers(): OrgMembersState {
-  const { items, loading, error, refresh } = useFanout<string, OrgMember>(
+  const { items, loading, error, lastUpdated, refresh } = useFanout<string, OrgMember>(
     async () => {
       const settings = await loadSettings();
       return settings.orgs.map((o) => o.login);
@@ -22,6 +23,8 @@ export function useOrgMembers(): OrgMembersState {
     (login) => fetchOrgMembers(login),
     'orgs',
     [],
+    false,
+    'team-members',
   );
 
   const members = useMemo(() => {
@@ -34,5 +37,5 @@ export function useOrgMembers(): OrgMembersState {
     return Array.from(byLogin.values());
   }, [items]);
 
-  return { members, loading, error, refresh };
+  return { members, loading, error, lastUpdated, refresh };
 }

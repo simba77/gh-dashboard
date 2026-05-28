@@ -24,5 +24,6 @@ export function useTestingQueue(viewerLogin: string | null): FanoutState<Testing
     'projects',
     [viewerLogin],
     !viewerLogin,
+    'testing-queue',
   );
 }
