@@ -1,10 +1,9 @@
 import { openUrl } from '@tauri-apps/plugin-opener';
 
-import type { ActiveItem } from '../../api/queries/projectActiveItems';
 import { useRateLimit } from '../../hooks/rateLimit';
 import { logger } from '../../lib/logger';
 import { UpdatedAgo } from '../../ui/UpdatedAgo';
-import { useMyTasks } from './useMyTasks';
+import { useMyTasks, type MyTask } from './useMyTasks';
 
 function handleOpen(url: string): void {
   openUrl(url).catch((e: unknown) => {
@@ -12,7 +11,7 @@ function handleOpen(url: string): void {
   });
 }
 
-function ItemRow({ item }: { item: ActiveItem }) {
+function ItemRow({ item }: { item: MyTask }) {
   const inner = (
     <>
       <span className="widget__repo">{item.projectTitle}</span>
@@ -41,7 +40,7 @@ function ItemRow({ item }: { item: ActiveItem }) {
 }
 
 export function MyTasksWidget({ viewerLogin }: { viewerLogin: string | null }) {
-  const { items, loading, error, lastUpdated, paused, refresh } = useMyTasks(viewerLogin);
+  const { items, loading, lastUpdated, paused, refresh } = useMyTasks(viewerLogin);
   const { pausedUntil } = useRateLimit();
   const pauseTitle = pausedUntil
     ? `Rate-limited until ${pausedUntil.toLocaleTimeString()}`
@@ -64,8 +63,7 @@ export function MyTasksWidget({ viewerLogin }: { viewerLogin: string | null }) {
         </div>
       </header>
 
-      {error ? <p className="login__error">{error}</p> : null}
-      {!loading && !error && items.length === 0 ? (
+      {!loading && items.length === 0 ? (
         <p className="settings__hint">Nothing on your plate right now.</p>
       ) : null}
 
