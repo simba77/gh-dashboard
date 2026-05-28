@@ -1,10 +1,9 @@
 import { openUrl } from '@tauri-apps/plugin-opener';
 
-import type { AssignedItem } from '../../api/queries/projectAssignedItems';
 import { useRateLimit } from '../../hooks/rateLimit';
 import { logger } from '../../lib/logger';
 import { UpdatedAgo } from '../../ui/UpdatedAgo';
-import { useAssignedByMe } from './useAssignedByMe';
+import { useAssignedByMe, type AssignedItem } from './useAssignedByMe';
 
 function handleOpen(url: string): void {
   openUrl(url).catch((e: unknown) => {
@@ -46,7 +45,7 @@ function ItemRow({ item }: { item: AssignedItem }) {
 }
 
 export function AssignedByMeWidget({ viewerLogin }: { viewerLogin: string | null }) {
-  const { items, loading, error, lastUpdated, paused, refresh } = useAssignedByMe(viewerLogin);
+  const { items, loading, lastUpdated, paused, refresh } = useAssignedByMe(viewerLogin);
   const { pausedUntil } = useRateLimit();
   const pauseTitle = pausedUntil
     ? `Rate-limited until ${pausedUntil.toLocaleTimeString()}`
@@ -69,8 +68,7 @@ export function AssignedByMeWidget({ viewerLogin }: { viewerLogin: string | null
         </div>
       </header>
 
-      {error ? <p className="login__error">{error}</p> : null}
-      {!loading && !error && items.length === 0 ? (
+      {!loading && items.length === 0 ? (
         <p className="settings__hint">Nothing delegated right now.</p>
       ) : null}
 
