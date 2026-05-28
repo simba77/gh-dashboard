@@ -61,8 +61,101 @@ button:disabled {
   color: #c0392b;
 }
 
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.topnav {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0.6rem 1.5rem;
+  background: #1a1a1a;
+  color: #fff;
+}
+
+.topnav__brand {
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+}
+
+.topnav__tabs {
+  display: flex;
+  gap: 0.25rem;
+  flex: 1;
+}
+
+.topnav__tab {
+  padding: 0.35em 0.9em;
+  font-size: 0.9rem;
+  background: transparent;
+  color: #ccc;
+  border: 1px solid transparent;
+  border-radius: 6px;
+}
+
+.topnav__tab:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.topnav__tab--active {
+  background: #fff;
+  color: #1a1a1a;
+}
+
+.topnav__tab--active:hover {
+  background: #fff;
+  color: #1a1a1a;
+}
+
+.topnav__user {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.topnav__login {
+  font-size: 0.85rem;
+  color: #ccc;
+}
+
+.topnav__user button {
+  background: transparent;
+  color: #fff;
+  border: 1px solid #444;
+  padding: 0.35em 0.9em;
+  font-size: 0.85rem;
+}
+
+.topnav__user button:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .app {
   padding: 1.5rem;
+}
+
+.screen__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.screen__title {
+  margin: 0 0 1rem;
+  font-size: 1.4rem;
+}
+
+.screen__head .screen__title {
+  margin: 0;
 }
 
 .app__header {

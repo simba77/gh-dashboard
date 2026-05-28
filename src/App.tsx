@@ -5,11 +5,13 @@ import { useAuth } from './auth/useAuth';
 import { useViewer } from './auth/useViewer';
 import { AssignedByMeWidget } from './features/assigned-by-me/AssignedByMeWidget';
 import { KanbanWidget } from './features/kanban/KanbanWidget';
+import { MyTasksWidget } from './features/my-tasks/MyTasksWidget';
 import { PrAwaitingReviewWidget } from './features/pr-review/PrAwaitingReviewWidget';
 import { TeamScreen } from './features/team-view/TeamScreen';
 import { TestingQueueWidget } from './features/testing-queue/TestingQueueWidget';
 import { useRateLimit } from './hooks/rateLimit';
 import { SettingsScreen } from './settings/SettingsScreen';
+import { TopNav, type View } from './ui/TopNav';
 import './App.css';
 
 function RateLimitBanner() {
@@ -25,70 +27,40 @@ function RateLimitBanner() {
   );
 }
 
-type View = 'dashboard' | 'team' | 'settings';
+function Dashboard({ viewerLogin }: { viewerLogin: string | null }) {
+  return (
+    <>
+      <PrAwaitingReviewWidget />
+      <MyTasksWidget viewerLogin={viewerLogin} />
+      <TestingQueueWidget viewerLogin={viewerLogin} />
+      <AssignedByMeWidget viewerLogin={viewerLogin} />
+      <KanbanWidget />
+    </>
+  );
+}
 
 function Authenticated({ onLogout }: { onLogout: () => Promise<void> }) {
   const { login, error } = useViewer();
   const [view, setView] = useState<View>('dashboard');
 
-  if (view === 'settings') {
-    return (
-      <SettingsScreen
-        onClose={() => {
-          setView('dashboard');
-        }}
-      />
-    );
-  }
-
-  if (view === 'team') {
-    return (
-      <TeamScreen
-        onClose={() => {
-          setView('dashboard');
-        }}
-      />
-    );
-  }
-
   return (
-    <main className="app">
-      <header className="app__header">
-        <span>{login ? `Signed in as ${login}` : 'Verifying…'}</span>
-        <div className="app__actions">
-          <button
-            type="button"
-            onClick={() => {
-              setView('team');
-            }}
-          >
-            Team
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setView('settings');
-            }}
-          >
-            Settings
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              void onLogout();
-            }}
-          >
-            Sign out
-          </button>
-        </div>
-      </header>
-      {error ? <p className="login__error">{error}</p> : null}
-      <RateLimitBanner />
-      <PrAwaitingReviewWidget />
-      <TestingQueueWidget viewerLogin={login} />
-      <AssignedByMeWidget viewerLogin={login} />
-      <KanbanWidget />
-    </main>
+    <div className="app-shell">
+      <TopNav
+        view={view}
+        onChange={setView}
+        viewerLogin={login}
+        onLogout={() => {
+          void onLogout();
+        }}
+      />
+      <div className="app">
+        {error ? <p className="login__error">{error}</p> : null}
+        <RateLimitBanner />
+        {view === 'dashboard' ? <Dashboard viewerLogin={login} /> : null}
+        {view === 'team' ? <TeamScreen /> : null}
+        {view === 'settings' ? <SettingsScreen /> : null}
+      </div>
+    </div>
   );
 }
 

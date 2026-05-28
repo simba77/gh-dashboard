@@ -238,7 +238,7 @@ function ProjectsPanel({ orgs, refreshing, onToggle, onRefresh }: ProjectsPanelP
 
 type Panel = 'none' | 'people' | 'projects';
 
-export function TeamScreen({ onClose }: { onClose: () => void }) {
+export function TeamScreen() {
   const { settings, setWatched, toggleTeamExcluded, refreshOrgProjects, refreshing } =
     useSettings();
   const activity = useTeamActivity();
@@ -276,9 +276,9 @@ export function TeamScreen({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <main className="app">
-      <header className="app__header">
-        <h1>Team</h1>
+    <>
+      <header className="screen__head">
+        <h1 className="screen__title">Team</h1>
         <div className="app__actions">
           <UpdatedAgo at={activity.lastUpdated} />
           <button
@@ -301,9 +301,6 @@ export function TeamScreen({ onClose }: { onClose: () => void }) {
           </button>
           <button type="button" onClick={activity.refresh} disabled={activity.loading}>
             {activity.loading ? 'Refreshing…' : 'Refresh'}
-          </button>
-          <button type="button" onClick={onClose}>
-            Done
           </button>
         </div>
       </header>
@@ -336,6 +333,6 @@ export function TeamScreen({ onClose }: { onClose: () => void }) {
           <MemberCard key={p.login} person={p} items={itemsByLogin.get(p.login) ?? []} />
         ))}
       </div>
-    </main>
+    </>
   );
 }

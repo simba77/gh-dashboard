@@ -64,7 +64,7 @@ function OrgSection({
   );
 }
 
-export function SettingsScreen({ onClose }: { onClose: () => void }) {
+export function SettingsScreen() {
   const {
     settings,
     loading,
@@ -86,13 +86,8 @@ export function SettingsScreen({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <main className="app">
-      <header className="app__header">
-        <h1>Settings</h1>
-        <button type="button" onClick={onClose}>
-          Done
-        </button>
-      </header>
+    <>
+      <h1 className="screen__title">Settings</h1>
 
       <form
         className="settings__add"
@@ -144,6 +139,6 @@ export function SettingsScreen({ onClose }: { onClose: () => void }) {
           }}
         />
       ))}
-    </main>
+    </>
   );
 }
