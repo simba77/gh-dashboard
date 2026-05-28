@@ -1,130 +1,149 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 
-import { fetchProjectKanban, type KanbanBoard } from '../../api/queries/projectKanban';
-import { readCache, writeCache } from '../../hooks/cache';
+import type { ProjectItemRow } from '../../db/projectItems';
+import { selectStatusOptions, type StatusOptionRow } from '../../db/projectStatusOptions';
 import { useRateLimit } from '../../hooks/rateLimit';
 import { logger } from '../../lib/logger';
+import { getLastSyncAt, subscribeItems } from '../../sync/itemStore';
+import { getInFlight, refreshAll, subscribeInFlight } from '../../sync/orchestrator';
+import { useItems } from '../../sync/useItems';
 
-const POLL_INTERVAL_MS = 60_000;
-const RESUME_PAD_MS = 500;
-const CACHE_PREFIX = 'kanban:';
+export interface KanbanCard {
+  itemId: string;
+  title: string;
+  url: string | null;
+  number: number | null;
+  assignees: string[];
+  isDraft: boolean;
+}
 
-interface ProjectKanbanState {
+export interface KanbanColumn {
+  // null id is the synthetic "no status" bucket for items whose Status value
+  // doesn't match any current option (or is missing entirely).
+  optionId: string | null;
+  name: string;
+  cards: KanbanCard[];
+}
+
+export interface KanbanBoard {
+  projectTitle: string;
+  // null when the project has no "Status" single-select field. The widget
+  // renders a hint instead of an empty board in that case.
+  columns: KanbanColumn[] | null;
+}
+
+export interface KanbanState {
   board: KanbanBoard | null;
   loading: boolean;
-  error: string | null;
   lastUpdated: Date | null;
   paused: boolean;
   refresh: () => void;
 }
 
-function formatPause(until: Date): string {
-  return `Paused — rate limit resets at ${until.toLocaleTimeString()}`;
+const NO_STATUS_LABEL = '(no status)';
+
+function toCard(row: ProjectItemRow): KanbanCard {
+  return {
+    itemId: row.itemId,
+    title: row.title,
+    url: row.url,
+    number: row.number,
+    assignees: row.assignees,
+    isDraft: row.isDraft,
+  };
 }
 
-// Fetches the kanban board for a single project, polls every 60s, persists
-// the last-known board per projectId and pauses while rate-limited. null
-// `projectId` resets state (used while settings load).
-export function useProjectKanban(projectId: string | null): ProjectKanbanState {
-  const [board, setBoard] = useState<KanbanBoard | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [tick, setTick] = useState(0);
-  const activeRef = useRef(true);
+function buildBoard(
+  projectId: string,
+  rows: ProjectItemRow[],
+  options: StatusOptionRow[],
+): KanbanBoard {
+  // projectTitle lives on the items (we don't store it per-project) — derive
+  // from any one of them; empty board falls back to an empty string.
+  const sample = rows.find((r) => r.projectId === projectId);
+  const projectTitle = sample?.projectTitle ?? '';
+  if (options.length === 0) {
+    return { projectTitle, columns: null };
+  }
+
+  const buckets = new Map<string | null, KanbanCard[]>();
+  for (const opt of options) {
+    buckets.set(opt.optionId, []);
+  }
+  buckets.set(null, []);
+
+  for (const r of rows) {
+    if (r.projectId !== projectId) continue;
+    const optionId = r.statusOptionId;
+    const card = toCard(r);
+    const bucket = buckets.get(optionId) ?? buckets.get(null);
+    bucket?.push(card);
+  }
+
+  const columns: KanbanColumn[] = options.map((opt) => ({
+    optionId: opt.optionId,
+    name: opt.name,
+    cards: buckets.get(opt.optionId) ?? [],
+  }));
+  const noStatus = buckets.get(null) ?? [];
+  if (noStatus.length > 0) {
+    columns.push({ optionId: null, name: NO_STATUS_LABEL, cards: noStatus });
+  }
+  return { projectTitle, columns };
+}
+
+// Reads board for one project from the shared item cache, joined with the
+// project's Status options (loaded once per projectId on mount). Re-reads
+// options each time a sync completes — handles the case where a column was
+// added/renamed/removed on GitHub.
+export function useProjectKanban(projectId: string | null): KanbanState {
   const { pausedUntil } = useRateLimit();
-  const pausedAtMs = pausedUntil?.getTime() ?? 0;
+  const [options, setOptions] = useState<StatusOptionRow[]>([]);
+  const lastSyncAt = useSyncExternalStore(subscribeItems, getLastSyncAt);
 
   useEffect(() => {
     if (!projectId) {
-      setBoard(null);
-      setLoading(false);
-      setError(null);
-      setLastUpdated(null);
+      setOptions([]);
       return;
     }
-    activeRef.current = true;
-
-    const cacheKey = CACHE_PREFIX + projectId;
-    const now = Date.now();
-    if (pausedAtMs > now) {
-      setLoading(false);
-      // Paint a cached board if we have one so the user isn't staring at
-      // a blank tab while paused. Surface the pause as an error only when
-      // there's nothing to show — otherwise the global banner is enough.
-      const cached = readCache<KanbanBoard>(cacheKey);
-      if (cached) {
-        setBoard(cached.items);
-        setLastUpdated(new Date(cached.savedAt));
-        setError(null);
-      } else {
-        setBoard(null);
-        setLastUpdated(null);
-        setError(formatPause(new Date(pausedAtMs)));
-      }
-      const wakeTimer = window.setTimeout(
-        () => {
-          setTick((t) => t + 1);
-        },
-        pausedAtMs - now + RESUME_PAD_MS,
-      );
-      return () => {
-        window.clearTimeout(wakeTimer);
-      };
-    }
-
-    const cached = readCache<KanbanBoard>(cacheKey);
-    if (cached) {
-      setBoard(cached.items);
-      setLastUpdated(new Date(cached.savedAt));
-    } else {
-      setBoard(null);
-      setLastUpdated(null);
-    }
-    setLoading(true);
-
-    let timerId: number | undefined;
-
-    fetchProjectKanban(projectId)
+    let cancelled = false;
+    selectStatusOptions(projectId)
       .then((next) => {
-        if (!activeRef.current) {
-          return;
+        if (!cancelled) {
+          setOptions(next);
         }
-        setBoard(next);
-        setLastUpdated(new Date());
-        setError(null);
-        writeCache(cacheKey, next);
       })
       .catch((e: unknown) => {
-        if (!activeRef.current) {
-          return;
-        }
-        logger.error('Failed to load kanban', e);
-        setError(e instanceof Error ? e.message : String(e));
-      })
-      .finally(() => {
-        if (activeRef.current) {
-          setLoading(false);
-          timerId = window.setInterval(() => {
-            setTick((t) => t + 1);
-          }, POLL_INTERVAL_MS);
-        }
+        logger.error('Failed to load status options', e);
       });
-
     return () => {
-      activeRef.current = false;
-      if (timerId !== undefined) {
-        window.clearInterval(timerId);
-      }
+      cancelled = true;
     };
-  }, [projectId, tick, pausedAtMs]);
+    // Re-run on lastSyncAt so a fresh sync that adds/renames options updates
+    // the column list without forcing the user to refresh.
+  }, [projectId, lastSyncAt]);
 
+  const board = useItems(
+    (rows): KanbanBoard | null => {
+      if (!projectId) {
+        return null;
+      }
+      return buildBoard(projectId, rows, options);
+    },
+    [projectId, options],
+  );
+  const loading = useSyncExternalStore(subscribeInFlight, getInFlight);
   const refresh = useCallback(() => {
-    if (pausedAtMs > Date.now()) {
-      return;
-    }
-    setTick((t) => t + 1);
-  }, [pausedAtMs]);
+    refreshAll().catch((e: unknown) => {
+      logger.error('Refresh failed', e);
+    });
+  }, []);
 
-  return { board, loading, error, lastUpdated, paused: pausedAtMs > Date.now(), refresh };
+  return {
+    board,
+    loading,
+    lastUpdated: lastSyncAt ? new Date(lastSyncAt) : null,
+    paused: (pausedUntil?.getTime() ?? 0) > Date.now(),
+    refresh,
+  };
 }
