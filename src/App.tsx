@@ -4,6 +4,7 @@ import { LoginScreen } from './auth/LoginScreen';
 import { useAuth } from './auth/useAuth';
 import { useViewer } from './auth/useViewer';
 import { AssignedByMeWidget } from './features/assigned-by-me/AssignedByMeWidget';
+import { KanbanWidget } from './features/kanban/KanbanWidget';
 import { PrAwaitingReviewWidget } from './features/pr-review/PrAwaitingReviewWidget';
 import { TestingQueueWidget } from './features/testing-queue/TestingQueueWidget';
 import { SettingsScreen } from './settings/SettingsScreen';
@@ -50,6 +51,7 @@ function Authenticated({ onLogout }: { onLogout: () => Promise<void> }) {
       <PrAwaitingReviewWidget />
       <TestingQueueWidget viewerLogin={login} />
       <AssignedByMeWidget viewerLogin={login} />
+      <KanbanWidget />
     </main>
   );
 }
