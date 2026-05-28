@@ -2,7 +2,7 @@ import { openUrl } from '@tauri-apps/plugin-opener';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { OrgMember } from '../../api/queries/orgMembers';
-import type { ActiveItem } from '../../api/queries/projectActiveItems';
+import type { TeamActivityItem } from './useTeamActivity';
 import { useRateLimit } from '../../hooks/rateLimit';
 import { logger } from '../../lib/logger';
 import { useSettings } from '../../settings/useSettings';
@@ -21,11 +21,11 @@ function handleOpen(url: string): void {
 
 interface StatusGroup {
   name: string;
-  items: ActiveItem[];
+  items: TeamActivityItem[];
 }
 
-function groupByStatus(items: ActiveItem[]): StatusGroup[] {
-  const map = new Map<string, ActiveItem[]>();
+function groupByStatus(items: TeamActivityItem[]): StatusGroup[] {
+  const map = new Map<string, TeamActivityItem[]>();
   for (const item of items) {
     const key = item.status ?? NO_STATUS_LABEL;
     const arr = map.get(key) ?? [];
@@ -39,7 +39,7 @@ function groupByStatus(items: ActiveItem[]): StatusGroup[] {
   });
 }
 
-function ItemRow({ item }: { item: ActiveItem }) {
+function ItemRow({ item }: { item: TeamActivityItem }) {
   const inner = (
     <>
       {item.number !== null ? <span className="team__num">#{item.number}</span> : null}
@@ -65,7 +65,7 @@ function ItemRow({ item }: { item: ActiveItem }) {
   );
 }
 
-function MemberCard({ person, items }: { person: WatchedPerson; items: ActiveItem[] }) {
+function MemberCard({ person, items }: { person: WatchedPerson; items: TeamActivityItem[] }) {
   const displayName = person.name ?? person.login;
 
   if (items.length === 0) {
@@ -250,7 +250,7 @@ export function TeamScreen() {
   const [panel, setPanel] = useState<Panel>('none');
 
   const itemsByLogin = useMemo(() => {
-    const map = new Map<string, ActiveItem[]>();
+    const map = new Map<string, TeamActivityItem[]>();
     for (const item of activity.items) {
       for (const login of item.assignees) {
         const arr = map.get(login) ?? [];
@@ -314,8 +314,6 @@ export function TeamScreen() {
           </button>
         </div>
       </header>
-
-      {activity.error ? <p className="login__error">{activity.error}</p> : null}
 
       {panel === 'people' ? <PeoplePanel watched={settings.watched} onChange={setWatched} /> : null}
       {panel === 'projects' ? (
