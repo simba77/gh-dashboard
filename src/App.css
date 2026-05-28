@@ -177,6 +177,15 @@ button:disabled {
   border-color: #e4e4e4;
 }
 
+.widget__row--static {
+  cursor: default;
+}
+
+.widget__row--static:hover {
+  background: transparent;
+  border-color: transparent;
+}
+
 .widget__repo {
   color: #555;
   font-variant-numeric: tabular-nums;
