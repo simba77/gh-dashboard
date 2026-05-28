@@ -1,10 +1,9 @@
 import { openUrl } from '@tauri-apps/plugin-opener';
 
-import type { TestingItem } from '../../api/queries/projectTestingItems';
 import { useRateLimit } from '../../hooks/rateLimit';
 import { logger } from '../../lib/logger';
 import { UpdatedAgo } from '../../ui/UpdatedAgo';
-import { useTestingQueue } from './useTestingQueue';
+import { useTestingQueue, type TestingItem } from './useTestingQueue';
 
 function handleOpen(url: string): void {
   openUrl(url).catch((e: unknown) => {
@@ -48,7 +47,7 @@ function ItemRow({ item }: { item: TestingItem }) {
 }
 
 export function TestingQueueWidget({ viewerLogin }: { viewerLogin: string | null }) {
-  const { items, loading, error, lastUpdated, paused, refresh } = useTestingQueue(viewerLogin);
+  const { items, loading, lastUpdated, paused, refresh } = useTestingQueue(viewerLogin);
   const { pausedUntil } = useRateLimit();
   const pauseTitle = pausedUntil
     ? `Rate-limited until ${pausedUntil.toLocaleTimeString()}`
@@ -71,8 +70,7 @@ export function TestingQueueWidget({ viewerLogin }: { viewerLogin: string | null
         </div>
       </header>
 
-      {error ? <p className="login__error">{error}</p> : null}
-      {!loading && !error && items.length === 0 ? (
+      {!loading && items.length === 0 ? (
         <p className="settings__hint">Nothing in Testing assigned to you.</p>
       ) : null}
 
