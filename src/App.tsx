@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { LoginScreen } from './auth/LoginScreen';
 import { useAuth } from './auth/useAuth';
 import { useViewer } from './auth/useViewer';
+import { AssignedByMeWidget } from './features/assigned-by-me/AssignedByMeWidget';
 import { PrAwaitingReviewWidget } from './features/pr-review/PrAwaitingReviewWidget';
 import { TestingQueueWidget } from './features/testing-queue/TestingQueueWidget';
 import { SettingsScreen } from './settings/SettingsScreen';
@@ -48,6 +49,7 @@ function Authenticated({ onLogout }: { onLogout: () => Promise<void> }) {
       {error ? <p className="login__error">{error}</p> : null}
       <PrAwaitingReviewWidget />
       <TestingQueueWidget viewerLogin={login} />
+      <AssignedByMeWidget viewerLogin={login} />
     </main>
   );
 }
