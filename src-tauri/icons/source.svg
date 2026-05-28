@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Rounded-square tile. macOS .icns/Windows .ico bundlers preserve the
+       shape as drawn here; ~20% corner radius reads as a modern app icon. -->
+  <rect x="0" y="0" width="1024" height="1024" rx="200" ry="200" fill="#0a0a0a"/>
+
+  <!-- Stylised ECG / heartbeat: flat baseline, small P wave, sharp QRS spike,
+       small T wave, flat tail. One stroke, rounded caps so it stays readable
+       down to 16px. -->
+  <path d="M 110 512 L 320 512 L 380 460 L 430 512 L 480 180 L 540 830 L 600 512 L 720 512 L 770 444 L 820 512 L 910 512"
+        stroke="#ffffff" stroke-width="56" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>

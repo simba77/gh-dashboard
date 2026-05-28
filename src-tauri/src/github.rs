@@ -6,7 +6,7 @@ use crate::auth::read_token;
 
 const GRAPHQL_URL: &str = "https://api.github.com/graphql";
 // GitHub requires a User-Agent on all API requests.
-const USER_AGENT: &str = "gh-dashboard";
+const USER_AGENT: &str = "devpulse";
 const REMAINING_HEADER: &str = "x-ratelimit-remaining";
 const RESET_HEADER: &str = "x-ratelimit-reset";
 const RATE_LIMIT_FLOOR: i64 = 100;

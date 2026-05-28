@@ -18,7 +18,7 @@ const TABS: { id: View; label: string }[] = [
 export function TopNav({ view, onChange, viewerLogin, onLogout }: TopNavProps) {
   return (
     <nav className="topnav">
-      <div className="topnav__brand">GitHub Projects</div>
+      <div className="topnav__brand">DevPulse</div>
       <div className="topnav__tabs">
         {TABS.map((tab) => (
           <button

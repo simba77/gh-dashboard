@@ -28,7 +28,7 @@ export function LoginScreen({ deviceCode, error, onLogin }: LoginScreenProps) {
 
   return (
     <main className="login">
-      <h1>GitHub Projects Dashboard</h1>
+      <h1>DevPulse</h1>
 
       {deviceCode ? (
         <div className="login__code">

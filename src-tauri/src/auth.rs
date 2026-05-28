@@ -2,7 +2,7 @@ use keyring::Entry;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
-const KEYRING_SERVICE: &str = "gh-dashboard";
+const KEYRING_SERVICE: &str = "devpulse";
 const KEYRING_USER: &str = "github-token";
 const DEVICE_CODE_URL: &str = "https://github.com/login/device/code";
 const ACCESS_TOKEN_URL: &str = "https://github.com/login/oauth/access_token";
