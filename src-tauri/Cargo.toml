@@ -1,6 +1,6 @@
 [package]
 name = "devpulse"
-version = "0.1.0"
+version = "0.1.2"
 description = "DevPulse — at-a-glance view of your team's GitHub Projects work"
 authors = ["you"]
 edition = "2021"
