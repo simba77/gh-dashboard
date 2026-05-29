@@ -17,12 +17,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: macos-arm
+          # One universal (arm64 + x86_64) build on the Apple Silicon runner.
+          # GitHub retired the Intel `macos-13` image, so x86_64 is produced by
+          # cross-compiling here rather than on a dedicated Intel runner.
+          - platform: macos
             os: macos-latest
-            args: '--target aarch64-apple-darwin'
-          - platform: macos-x64
-            os: macos-13 # Intel runner
-            args: '--target x86_64-apple-darwin'
+            args: '--target universal-apple-darwin'
           - platform: windows-x64
             os: windows-latest
             args: ''
@@ -51,7 +51,7 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform == 'macos-x64' && 'x86_64-apple-darwin' || (matrix.platform == 'macos-arm' && 'aarch64-apple-darwin' || '') }}
+          targets: ${{ matrix.platform == 'macos' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
