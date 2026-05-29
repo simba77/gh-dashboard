@@ -21,10 +21,13 @@ export interface SyncResult {
 
 // Decides what kind of sync the project needs right now and runs it. Exposed
 // directly so the sync hook can call it per project on each polling tick.
+// Throws on fetch/IO failure — the orchestrator catches and continues with
+// other projects, so one broken project doesn't take down the whole pass.
 export async function syncProject(projectId: string): Promise<SyncResult> {
   const state = await getSyncState(projectId);
   const dueForFull =
     !state?.lastFullSync || Date.now() - state.lastFullSync >= FULL_SYNC_INTERVAL_MS;
+  const startedAt = Date.now();
 
   if (dueForFull) {
     const { items, statusOptions } = await fetchAllProjectItems(projectId);
@@ -38,7 +41,9 @@ export async function syncProject(projectId: string): Promise<SyncResult> {
     }
     const now = Date.now();
     await recordSync(projectId, { lastFullSync: now, lastTailSync: now });
-    logger.info(`Full sync ${projectId}: ${String(items.length)} items`);
+    logger.info(
+      `Full sync ${projectId}: ${String(items.length)} items, ${String(now - startedAt)} ms`,
+    );
     return { kind: 'full', upserted: items.length, removed: 0 };
   }
 
@@ -52,6 +57,8 @@ export async function syncProject(projectId: string): Promise<SyncResult> {
     await replaceStatusOptions(projectId, page.statusOptions);
   }
   await recordSync(projectId, { lastTailSync: Date.now() });
-  logger.info(`Tail sync ${projectId}: ${String(page.items.length)} items`);
+  logger.info(
+    `Tail sync ${projectId}: ${String(page.items.length)} items, ${String(Date.now() - startedAt)} ms`,
+  );
   return { kind: 'tail', upserted: page.items.length, removed: 0 };
 }

@@ -16,6 +16,12 @@ export function bumpGeneration(): number {
   return generation;
 }
 
+// Read accessor — the polling loop checks this between awaits so a stale
+// generation aborts cleanly when the user logs out / hot-reload remounts.
+export function getGeneration(): number {
+  return generation;
+}
+
 export function getInFlight(): boolean {
   return inFlight;
 }
@@ -59,37 +65,61 @@ async function collectActiveProjectIds(): Promise<string[]> {
 // Refreshes the local cache by syncing every tracked project in turn. Parallel
 // fan-out is tempting but reliably trips GitHub's secondary rate limit when
 // the user has 10+ projects; sequential is slower but predictable.
-export async function runSyncPass(gen: number): Promise<void> {
+//
+// Skip-if-running: when a poll tick fires while the previous pass is still
+// in flight (large org → 47 projects → sync takes >60s while interval is 60s),
+// the new tick is dropped instead of stacking work. Otherwise passes overlap,
+// double the request rate, and the user sees an unbroken stream of GraphQL
+// hits in the log — which is exactly what we just observed.
+export async function runSyncPass(gen: number, trigger: string): Promise<void> {
   if (gen !== generation) {
     return;
   }
+  if (inFlight) {
+    logger.info(`Sync pass skipped (${trigger}): previous pass still running`);
+    return;
+  }
   setInFlight(true);
+  const startedAt = Date.now();
+  let projectsDone = 0;
+  let projectsFailed = 0;
+  logger.info(`Sync pass started (${trigger})`);
   try {
     const ids = await collectActiveProjectIds();
     if (ids.length === 0) {
       await reloadFromDb([]);
       return;
     }
+    logger.info(`Sync pass: ${String(ids.length)} project(s) to sync`);
     for (const id of ids) {
       if (gen !== generation) {
+        logger.info(
+          `Sync pass aborted (generation bumped) at ${String(projectsDone)}/${String(ids.length)}`,
+        );
         return;
       }
       try {
         await syncProject(id);
         await reloadFromDb(ids);
+        projectsDone += 1;
       } catch (e) {
+        projectsFailed += 1;
         logger.error(`Project sync failed for ${id}`, e);
       }
     }
   } finally {
     setInFlight(false);
+    const elapsedMs = Date.now() - startedAt;
+    logger.info(
+      `Sync pass finished: ${String(projectsDone)} ok, ${String(projectsFailed)} failed, ${String(elapsedMs)} ms`,
+    );
   }
 }
 
 // Convenience entry for the Refresh button — always runs against the latest
 // generation so it can't be cancelled by a stale unmount.
 export async function refreshAll(): Promise<void> {
-  await runSyncPass(generation);
+  await runSyncPass(generation, 'manual-refresh');
 }
 
 // Initial paint from the DB cache, used during boot and while rate-limited.
