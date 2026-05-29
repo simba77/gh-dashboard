@@ -1,10 +1,7 @@
-import { useCallback, useSyncExternalStore } from 'react';
+import { useSyncExternalStore } from 'react';
 
 import type { ProjectItemRow } from '../../db/projectItems';
-import { useRateLimit } from '../../hooks/rateLimit';
-import { logger } from '../../lib/logger';
-import { getInFlight, refreshAll, subscribeInFlight } from '../../sync/orchestrator';
-import { getLastSyncAt, subscribeItems } from '../../sync/itemStore';
+import { getInFlight, subscribeInFlight } from '../../sync/orchestrator';
 import { useItems } from '../../sync/useItems';
 
 // Conventional status name — must match the option label on the project board.
@@ -25,9 +22,6 @@ export interface TestingItem {
 export interface TestingQueueState {
   items: TestingItem[];
   loading: boolean;
-  lastUpdated: Date | null;
-  paused: boolean;
-  refresh: () => void;
 }
 
 function toTestingItem(row: ProjectItemRow): TestingItem {
@@ -48,7 +42,6 @@ function toTestingItem(row: ProjectItemRow): TestingItem {
 // as the developer; the author verifies. All filtering is local — the sync
 // layer keeps the cache fresh in the background.
 export function useTestingQueue(viewerLogin: string | null): TestingQueueState {
-  const { pausedUntil } = useRateLimit();
   const items = useItems(
     (rows) => {
       if (!viewerLogin) {
@@ -61,20 +54,6 @@ export function useTestingQueue(viewerLogin: string | null): TestingQueueState {
     [viewerLogin],
   );
   const loading = useSyncExternalStore(subscribeInFlight, getInFlight);
-  // lastSyncAt is bumped alongside the snapshot in itemStore, so we subscribe
-  // to the items channel rather than the inFlight one.
-  const lastSyncAt = useSyncExternalStore(subscribeItems, getLastSyncAt);
-  const refresh = useCallback(() => {
-    refreshAll().catch((e: unknown) => {
-      logger.error('Refresh failed', e);
-    });
-  }, []);
 
-  return {
-    items,
-    loading,
-    lastUpdated: lastSyncAt ? new Date(lastSyncAt) : null,
-    paused: (pausedUntil?.getTime() ?? 0) > Date.now(),
-    refresh,
-  };
+  return { items, loading };
 }

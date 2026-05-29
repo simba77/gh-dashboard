@@ -3,11 +3,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { OrgMember } from '../../api/queries/orgMembers';
 import type { TeamActivityItem } from './useTeamActivity';
-import { useRateLimit } from '../../hooks/rateLimit';
 import { logger } from '../../lib/logger';
 import { useSettings } from '../../settings/useSettings';
 import type { WatchedPerson } from '../../settings/settingsStore';
-import { UpdatedAgo } from '../../ui/UpdatedAgo';
 import { useOrgMembers } from './useOrgMembers';
 import { useTeamActivity } from './useTeamActivity';
 
@@ -243,10 +241,6 @@ export function TeamScreen() {
   const { settings, setWatched, toggleTeamExcluded, refreshOrgProjects, refreshing } =
     useSettings();
   const activity = useTeamActivity();
-  const { pausedUntil } = useRateLimit();
-  const pauseTitle = pausedUntil
-    ? `Rate-limited until ${pausedUntil.toLocaleTimeString()}`
-    : undefined;
   const [panel, setPanel] = useState<Panel>('none');
 
   const itemsByLogin = useMemo(() => {
@@ -285,7 +279,6 @@ export function TeamScreen() {
       <header className="screen__head">
         <h1 className="screen__title">Team</h1>
         <div className="app__actions">
-          <UpdatedAgo at={activity.lastUpdated} paused={activity.paused} />
           <button
             type="button"
             onClick={() => {
@@ -303,14 +296,6 @@ export function TeamScreen() {
             aria-pressed={panel === 'projects'}
           >
             Manage projects
-          </button>
-          <button
-            type="button"
-            onClick={activity.refresh}
-            disabled={activity.loading || activity.paused}
-            title={pauseTitle}
-          >
-            {activity.loading ? 'Refreshing…' : 'Refresh'}
           </button>
         </div>
       </header>

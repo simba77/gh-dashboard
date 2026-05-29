@@ -1,11 +1,9 @@
-import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import type { ProjectItemRow } from '../../db/projectItems';
-import { useRateLimit } from '../../hooks/rateLimit';
 import { logger } from '../../lib/logger';
 import { loadSettings } from '../../settings/settingsStore';
-import { getLastSyncAt, subscribeItems } from '../../sync/itemStore';
-import { getInFlight, refreshAll, subscribeInFlight } from '../../sync/orchestrator';
+import { refreshAll } from '../../sync/orchestrator';
 import { useItems } from '../../sync/useItems';
 
 export interface TeamActivityItem {
@@ -21,9 +19,6 @@ export interface TeamActivityItem {
 
 export interface TeamActivityState {
   items: TeamActivityItem[];
-  loading: boolean;
-  lastUpdated: Date | null;
-  paused: boolean;
   refresh: () => void;
 }
 
@@ -45,7 +40,6 @@ function toItem(row: ProjectItemRow): TeamActivityItem {
 // on the Team screen. Reads `teamExcludedProjectIds` from settings on mount —
 // changing the set requires reloading the screen, which is fine for v1.
 export function useTeamActivity(): TeamActivityState {
-  const { pausedUntil } = useRateLimit();
   const [includedProjects, setIncludedProjects] = useState<Set<string> | null>(null);
 
   useEffect(() => {
@@ -82,19 +76,11 @@ export function useTeamActivity(): TeamActivityState {
     },
     [includedProjects],
   );
-  const loading = useSyncExternalStore(subscribeInFlight, getInFlight);
-  const lastSyncAt = useSyncExternalStore(subscribeItems, getLastSyncAt);
   const refresh = useCallback(() => {
     refreshAll().catch((e: unknown) => {
       logger.error('Refresh failed', e);
     });
   }, []);
 
-  return {
-    items,
-    loading,
-    lastUpdated: lastSyncAt ? new Date(lastSyncAt) : null,
-    paused: (pausedUntil?.getTime() ?? 0) > Date.now(),
-    refresh,
-  };
+  return { items, refresh };
 }

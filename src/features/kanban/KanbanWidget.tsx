@@ -2,10 +2,8 @@ import { openUrl } from '@tauri-apps/plugin-opener';
 import { useEffect, useState } from 'react';
 
 import type { KanbanCard, KanbanColumn } from './useProjectKanban';
-import { useRateLimit } from '../../hooks/rateLimit';
 import { logger } from '../../lib/logger';
 import { loadSettings } from '../../settings/settingsStore';
-import { UpdatedAgo } from '../../ui/UpdatedAgo';
 import { useProjectKanban } from './useProjectKanban';
 
 interface TabProject {
@@ -70,20 +68,10 @@ function Column({ column }: { column: KanbanColumn }) {
 }
 
 function BoardView({ projectId }: { projectId: string }) {
-  const { board, loading, lastUpdated, paused, refresh } = useProjectKanban(projectId);
-  const { pausedUntil } = useRateLimit();
-  const pauseTitle = pausedUntil
-    ? `Rate-limited until ${pausedUntil.toLocaleTimeString()}`
-    : undefined;
+  const { board } = useProjectKanban(projectId);
 
   return (
     <div className="kanban__board">
-      <div className="kanban__toolbar">
-        <UpdatedAgo at={lastUpdated} paused={paused} />
-        <button type="button" onClick={refresh} disabled={loading || paused} title={pauseTitle}>
-          {loading ? 'Refreshing…' : 'Refresh'}
-        </button>
-      </div>
       {board?.columns === null ? (
         <p className="settings__hint">
           Project has no &quot;Status&quot; single-select field — nothing to render as columns.

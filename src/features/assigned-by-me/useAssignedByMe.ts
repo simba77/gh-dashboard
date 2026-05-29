@@ -1,10 +1,7 @@
-import { useCallback, useSyncExternalStore } from 'react';
+import { useSyncExternalStore } from 'react';
 
 import type { ProjectItemRow } from '../../db/projectItems';
-import { useRateLimit } from '../../hooks/rateLimit';
-import { logger } from '../../lib/logger';
-import { getLastSyncAt, subscribeItems } from '../../sync/itemStore';
-import { getInFlight, refreshAll, subscribeInFlight } from '../../sync/orchestrator';
+import { getInFlight, subscribeInFlight } from '../../sync/orchestrator';
 import { useItems } from '../../sync/useItems';
 
 export interface AssignedItem {
@@ -24,16 +21,12 @@ export interface AssignedItem {
 export interface AssignedByMeState {
   items: AssignedItem[];
   loading: boolean;
-  lastUpdated: Date | null;
-  paused: boolean;
-  refresh: () => void;
 }
 
 // "Tasks I delegated" = items I authored that are still in flight and someone
 // other than me is assigned. Matches the workflow where the постановщик hands
 // off work and wants to track its progress without managing it directly.
 export function useAssignedByMe(viewerLogin: string | null): AssignedByMeState {
-  const { pausedUntil } = useRateLimit();
   const items = useItems(
     (rows): AssignedItem[] => {
       if (!viewerLogin) {
@@ -63,20 +56,8 @@ export function useAssignedByMe(viewerLogin: string | null): AssignedByMeState {
     [viewerLogin],
   );
   const loading = useSyncExternalStore(subscribeInFlight, getInFlight);
-  const lastSyncAt = useSyncExternalStore(subscribeItems, getLastSyncAt);
-  const refresh = useCallback(() => {
-    refreshAll().catch((e: unknown) => {
-      logger.error('Refresh failed', e);
-    });
-  }, []);
 
-  return {
-    items,
-    loading,
-    lastUpdated: lastSyncAt ? new Date(lastSyncAt) : null,
-    paused: (pausedUntil?.getTime() ?? 0) > Date.now(),
-    refresh,
-  };
+  return { items, loading };
 }
 
 // Re-export for convenience so widgets needn't reach into ProjectItemRow.

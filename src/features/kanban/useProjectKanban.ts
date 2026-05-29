@@ -1,11 +1,9 @@
-import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 
 import type { ProjectItemRow } from '../../db/projectItems';
 import { selectStatusOptions, type StatusOptionRow } from '../../db/projectStatusOptions';
-import { useRateLimit } from '../../hooks/rateLimit';
 import { logger } from '../../lib/logger';
 import { getLastSyncAt, subscribeItems } from '../../sync/itemStore';
-import { getInFlight, refreshAll, subscribeInFlight } from '../../sync/orchestrator';
 import { useItems } from '../../sync/useItems';
 
 export interface KanbanCard {
@@ -34,10 +32,6 @@ export interface KanbanBoard {
 
 export interface KanbanState {
   board: KanbanBoard | null;
-  loading: boolean;
-  lastUpdated: Date | null;
-  paused: boolean;
-  refresh: () => void;
 }
 
 const NO_STATUS_LABEL = '(no status)';
@@ -97,7 +91,6 @@ function buildBoard(
 // options each time a sync completes — handles the case where a column was
 // added/renamed/removed on GitHub.
 export function useProjectKanban(projectId: string | null): KanbanState {
-  const { pausedUntil } = useRateLimit();
   const [options, setOptions] = useState<StatusOptionRow[]>([]);
   const lastSyncAt = useSyncExternalStore(subscribeItems, getLastSyncAt);
 
@@ -132,18 +125,6 @@ export function useProjectKanban(projectId: string | null): KanbanState {
     },
     [projectId, options],
   );
-  const loading = useSyncExternalStore(subscribeInFlight, getInFlight);
-  const refresh = useCallback(() => {
-    refreshAll().catch((e: unknown) => {
-      logger.error('Refresh failed', e);
-    });
-  }, []);
 
-  return {
-    board,
-    loading,
-    lastUpdated: lastSyncAt ? new Date(lastSyncAt) : null,
-    paused: (pausedUntil?.getTime() ?? 0) > Date.now(),
-    refresh,
-  };
+  return { board };
 }

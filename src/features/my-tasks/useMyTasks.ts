@@ -1,10 +1,7 @@
-import { useCallback, useSyncExternalStore } from 'react';
+import { useSyncExternalStore } from 'react';
 
 import type { ProjectItemRow } from '../../db/projectItems';
-import { useRateLimit } from '../../hooks/rateLimit';
-import { logger } from '../../lib/logger';
-import { getLastSyncAt, subscribeItems } from '../../sync/itemStore';
-import { getInFlight, refreshAll, subscribeInFlight } from '../../sync/orchestrator';
+import { getInFlight, subscribeInFlight } from '../../sync/orchestrator';
 import { useItems } from '../../sync/useItems';
 
 // Items in Testing are surfaced by the dedicated "Testing waiting for me"
@@ -26,9 +23,6 @@ export interface MyTask {
 export interface MyTasksState {
   items: MyTask[];
   loading: boolean;
-  lastUpdated: Date | null;
-  paused: boolean;
-  refresh: () => void;
 }
 
 function toMyTask(row: ProjectItemRow): MyTask {
@@ -49,7 +43,6 @@ function toMyTask(row: ProjectItemRow): MyTask {
 // list is JSON, so we sift in TS instead. Cost is negligible compared to the
 // sync round-trip we save by sharing the cache.
 export function useMyTasks(viewerLogin: string | null): MyTasksState {
-  const { pausedUntil } = useRateLimit();
   const items = useItems(
     (rows) => {
       if (!viewerLogin) {
@@ -74,18 +67,6 @@ export function useMyTasks(viewerLogin: string | null): MyTasksState {
     [viewerLogin],
   );
   const loading = useSyncExternalStore(subscribeInFlight, getInFlight);
-  const lastSyncAt = useSyncExternalStore(subscribeItems, getLastSyncAt);
-  const refresh = useCallback(() => {
-    refreshAll().catch((e: unknown) => {
-      logger.error('Refresh failed', e);
-    });
-  }, []);
 
-  return {
-    items,
-    loading,
-    lastUpdated: lastSyncAt ? new Date(lastSyncAt) : null,
-    paused: (pausedUntil?.getTime() ?? 0) > Date.now(),
-    refresh,
-  };
+  return { items, loading };
 }

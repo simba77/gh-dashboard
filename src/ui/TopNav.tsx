@@ -1,3 +1,5 @@
+import { SyncControl } from './SyncControl';
+
 export type View = 'dashboard' | 'team' | 'settings';
 
 interface TopNavProps {
@@ -34,6 +36,7 @@ export function TopNav({ view, onChange, viewerLogin, onLogout }: TopNavProps) {
           </button>
         ))}
       </div>
+      <SyncControl />
       <div className="topnav__user">
         <span className="topnav__login">{viewerLogin ? `@${viewerLogin}` : 'Verifying…'}</span>
         <button type="button" onClick={onLogout}>

@@ -115,6 +115,24 @@ button:disabled {
   color: #1a1a1a;
 }
 
+.topnav__sync {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.topnav__sync button {
+  background: transparent;
+  color: #fff;
+  border: 1px solid #444;
+  padding: 0.35em 0.9em;
+  font-size: 0.85rem;
+}
+
+.topnav__sync button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .topnav__user {
   display: flex;
   align-items: center;
@@ -374,14 +392,6 @@ button:disabled {
   background: #1a1a1a;
   color: #fff;
   border-color: #1a1a1a;
-}
-
-.kanban__toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.6rem;
-  margin-bottom: 0.5rem;
 }
 
 .kanban__cols {
