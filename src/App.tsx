@@ -7,6 +7,7 @@ import { AssignedByMeWidget } from './features/assigned-by-me/AssignedByMeWidget
 import { KanbanWidget } from './features/kanban/KanbanWidget';
 import { MyTasksWidget } from './features/my-tasks/MyTasksWidget';
 import { PrAwaitingReviewWidget } from './features/pr-review/PrAwaitingReviewWidget';
+import { ProjectsScreen } from './features/projects-engagement/ProjectsScreen';
 import { TeamScreen } from './features/team-view/TeamScreen';
 import { TestingQueueWidget } from './features/testing-queue/TestingQueueWidget';
 import { useRateLimit } from './hooks/rateLimit';
@@ -85,6 +86,9 @@ function Authenticated({ onLogout }: { onLogout: () => Promise<void> }) {
         </div>
         <div hidden={view !== 'team'}>
           <TeamScreen />
+        </div>
+        <div hidden={view !== 'projects'}>
+          <ProjectsScreen />
         </div>
         <div hidden={view !== 'settings'}>
           <SettingsScreen />

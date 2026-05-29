@@ -652,3 +652,64 @@ button:disabled {
   justify-content: space-between;
   margin-bottom: 0.4rem;
 }
+
+.projects__head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.projects__title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.projects__rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.projects__row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.projects__who {
+  flex: 0 0 35%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.projects__bar {
+  flex: 1;
+  height: 8px;
+  background: #f0f0f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.projects__bar-fill {
+  display: block;
+  height: 100%;
+  background: #4f8cff;
+  border-radius: 4px;
+}
+
+.projects__count {
+  flex: 0 0 auto;
+  min-width: 1.5rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: #555;
+}

@@ -1,6 +1,6 @@
 import { SyncControl } from './SyncControl';
 
-export type View = 'dashboard' | 'team' | 'settings';
+export type View = 'dashboard' | 'team' | 'projects' | 'settings';
 
 interface TopNavProps {
   view: View;
@@ -12,6 +12,7 @@ interface TopNavProps {
 const TABS: { id: View; label: string }[] = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'team', label: 'Team' },
+  { id: 'projects', label: 'Projects' },
   { id: 'settings', label: 'Settings' },
 ];
 
