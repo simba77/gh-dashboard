@@ -1,6 +1,7 @@
 mod auth;
 mod github;
 
+use tauri_plugin_log::{Target, TargetKind};
 use tauri_plugin_sql::{Migration, MigrationKind};
 
 // One row per item we've ever seen on a tracked ProjectV2 board. Fields are
@@ -75,6 +76,20 @@ pub fn run() {
     ];
 
     tauri::Builder::default()
+        .plugin(
+            // Fans front-end `logger.*` calls (via @tauri-apps/plugin-log) and
+            // Rust-side `log` macros into a single stream. Stdout target shows
+            // the unified output in the dev terminal next to `cargo run`'s own
+            // messages; Webview target keeps them visible in DevTools too so
+            // we don't lose them when running a release build.
+            tauri_plugin_log::Builder::new()
+                .targets([
+                    Target::new(TargetKind::Stdout),
+                    Target::new(TargetKind::Webview),
+                ])
+                .level(log::LevelFilter::Info)
+                .build(),
+        )
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(

@@ -57,7 +57,7 @@ fn header_i64(headers: &HeaderMap, name: &str) -> Option<i64> {
 
 fn emit_rate_limit(app: &AppHandle, payload: RateLimitPayload) {
     if let Err(e) = app.emit(RATE_LIMIT_EVENT, payload) {
-        eprintln!("[rate-limit] failed to emit event: {e}");
+        log::warn!("rate-limit: failed to emit event: {e}");
     }
 }
 
@@ -105,7 +105,7 @@ pub async fn graphql_request(
             now_secs() + retry_after.unwrap_or(GRAPHQL_FALLBACK_PAUSE_SECS)
         };
         let kind = if primary { "primary" } else { "secondary" };
-        eprintln!("[rate-limit] {kind} pause until unix {until}");
+        log::warn!("rate-limit: {kind} pause until unix {until}");
         emit_rate_limit(
             &app,
             RateLimitPayload {
@@ -143,7 +143,7 @@ pub async fn graphql_request(
             .any(|e| e.get("type").and_then(Value::as_str) == Some("RATE_LIMITED"));
         if is_rate_limited {
             let until = reset_at.unwrap_or_else(|| now_secs() + GRAPHQL_FALLBACK_PAUSE_SECS);
-            eprintln!("[rate-limit] graphql pause until unix {until}");
+            log::warn!("rate-limit: graphql pause until unix {until}");
             emit_rate_limit(
                 &app,
                 RateLimitPayload {
@@ -165,14 +165,14 @@ pub async fn graphql_request(
     // block. Otherwise it's a plain informational update for the banner.
     let pause = if remaining == Some(0) {
         let until = reset_at.unwrap_or_else(|| now_secs() + GRAPHQL_FALLBACK_PAUSE_SECS);
-        eprintln!("[rate-limit] primary pause until unix {until} (remaining=0 on success)");
+        log::warn!("rate-limit: primary pause until unix {until} (remaining=0 on success)");
         Some(RateLimitPause {
             kind: "primary",
             until,
         })
     } else {
         if let Some(r) = remaining {
-            eprintln!("[rate-limit] {r} remaining");
+            log::debug!("rate-limit: {r} remaining");
         }
         None
     };
